@@ -1,6 +1,6 @@
 ﻿using Stage.Core;
 
-namespace Stage.UI
+namespace Stage.UIModule
 {
     public struct Rect
     {

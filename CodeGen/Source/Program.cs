@@ -42,7 +42,6 @@ namespace Stage.CodeGen
 
             RootCommand rootCommand = new RootCommand("Generate code for the project.");
             rootCommand.AddCommand(glfwCommand);
-            rootCommand.AddCommand(gladCommand);
             rootCommand.AddCommand(glCommand);
             rootCommand.AddCommand(imguiCommand);
 

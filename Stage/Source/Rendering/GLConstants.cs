@@ -1,4 +1,4 @@
-﻿namespace Stage.Renderer
+﻿namespace Stage.Rendering
 {
     internal static class GLConstants
     {

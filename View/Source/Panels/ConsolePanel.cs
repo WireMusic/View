@@ -1,9 +1,9 @@
 ﻿using Stage.Core;
 using Stage.UIModule;
 
-namespace View
+namespace View.Panels
 {
-    internal class ConsolePanel
+    internal class ConsolePanel : IPanel
     {
         public enum LogLevel
         {
@@ -19,7 +19,6 @@ namespace View
             public string Message;
         }
 
-        private bool _open;
         private bool _clearOnPlay;
 
         private uint[] _colours =
@@ -30,6 +29,9 @@ namespace View
         };
 
         private List<ConsoleMessage> _messages;
+
+        private bool _open;
+        public bool Open => _open;
 
         public ConsolePanel()
         {
@@ -149,7 +151,7 @@ namespace View
                             {
                                 string paddedString = "  " + msg.Message;
 
-                                float columnWidth = UI.GetWindowSize().X - ((UI.CalcTextSize("Warning").X + 30.0f + UI.CalcTextSize("00:00:00").X + 30.0f));
+                                float columnWidth = UI.GetWindowSize().X - (UI.CalcTextSize("Warning").X + 30.0f + UI.CalcTextSize("00:00:00").X + 30.0f);
                                 float oneChar = UI.CalcTextSize(paddedString).X / paddedString.Length;
                                 if (oneChar * paddedString.Length > columnWidth - 16.0f)
                                 {

@@ -1,9 +1,10 @@
 ﻿using Stage.Core;
 using Stage.Projects;
-using Stage.Renderer;
+using Stage.Rendering;
 using Stage.UIModule;
 
 using View.Utils;
+using View.Panels;
 
 using System;
 using System.Text.Json.Serialization;
@@ -17,7 +18,8 @@ namespace View
 
         private Window? CreateProjectWindow;
 
-        private ConsolePanel CP;
+        private ProjectBrowserPanel ProjectBrowser;
+        private ModularPanel ModularPanel;
 
         private bool _openProject = false;
         private int _frames = 0;
@@ -39,19 +41,35 @@ namespace View
         public EditorLayer()
             : base("EditorLayer")
         {
+
             Menu = new Menubar();
-            var file = new Menu("File");
-            var close = new MenuItem("Close", "Alt+F4");
-            var open = new Menu("Open");
-            var openProject = new MenuItem("Open Project...", "Ctrl+Shift+O");
-            open.AddItem(openProject);
-            openProject.SetCallback(() => _openProject = true);
-            close.SetCallback(Application.Instance.Close);
-            file.AddItem(open);
-            file.AddItem(close);
+            Menu file = new Menu("File");
+            Menu help = new Menu("Help");
+            file.Items = new List<MenuPart>
+            {
+                new Menu("Project")
+                {
+                    Items = new List<MenuPart>
+                    {
+                        new MenuItem("Open Project...", "Ctrl+Shift+O")
+                        {
+                            Callback = () => _openProject = true
+                        },
+                        new MenuItem("Close Project", "Ctrl+Shift+W")
+                        {
+                            Callback = Project.Close
+                        }
+                    }
+                },
+                new MenuItem("Close", "Alt+F4")
+                {
+                    Callback = Application.Instance.Close
+                }
+            };
             Menu.AddMenu(file);
 
-            CP = new ConsolePanel();
+            ProjectBrowser = new ProjectBrowserPanel();
+            ModularPanel = new ModularPanel();
         }
 
         public override void OnAttach()
@@ -98,8 +116,7 @@ namespace View
 
                     Vector2 max = UI.GetCurrentCursorPos() + new Vector2(UI.GetContentRegionAvailable().X, 58.0f * _recentProjects.Length);
 
-                    DrawList drawList = UI.GetWindowDrawList();
-                    drawList.AddRectFilled(UI.GetCurrentCursorPos(), max, new Vector4(0.35f), 5.0f);
+                    Renderer.Current.DrawFilledRect(UI.GetCurrentCursorPos(), max, new Vector4(0.35f), 5.0f);
 
                     for (int i = 0; i < _recentProjects.Length; i++)
                     {
@@ -280,7 +297,7 @@ namespace View
                 _openProject = false;
                 _createProject = false;
 
-                Project.Current = project;
+                project.Load();
             }
 
             if (!isLast)
@@ -299,8 +316,10 @@ namespace View
 
         public override void OnUI()
         {
-            UI.CreateDockspace(Menu);            
+            UI.CreateDockspace(Menu);
             //CP.OnUI();
+            ProjectBrowser.OnUI();
+            ModularPanel.OnUI();
         }
 
         private Project[] GetProjects(FileStream fs)

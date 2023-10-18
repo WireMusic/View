@@ -1,13 +1,5 @@
 #pragma once
 
-#ifdef _WIN32
-#define MV_EXPORT extern "C" __declspec(dllexport)
-#define MV_IMPORT extern "C" __declspec(dllimport)
-#else
-#define MV_EXPORT
-#define MV_IMPORT extern
-#endif
-
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
    #ifdef _WIN64
         #define MV_WINDOWS
@@ -28,4 +20,16 @@
 #elif defined(_POSIX_VERSION)
 #else
     #error "Unknown compiler"
+#endif
+
+#ifdef MV_WINDOWS
+#define MV_EXPORT extern "C" __declspec(dllexport)
+#define MV_IMPORT extern "C" __declspec(dllimport)
+#elif MV_MACOSX
+#define MV_EXPORT extern "C"
+#define MV_IMPORT extern
+#else
+#define MV_EXPORT
+#define MV_IMPORT
+#error Platform not supported!
 #endif

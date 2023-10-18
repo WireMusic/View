@@ -70,7 +70,7 @@
 //  2017-08-25: Inputs: MousePos set to -FLT_MAX,-FLT_MAX when mouse is unavailable/missing (instead of -1,-1).
 //  2016-10-15: Misc: Added a void* user_data parameter to Clipboard function handlers.
 
-#include "imgui.h"
+#include "cimgui.h"
 #ifndef IMGUI_DISABLE
 #include "imgui_impl_glfw.h"
 
@@ -98,6 +98,25 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 #endif
+
+#include <float.h>
+
+#ifndef IM_ASSERT
+#include <assert.h>
+#define IM_ASSERT(_EXPR)            assert(_EXPR)
+#endif
+
+#define IM_OFFSETOF(_TYPE,_MEMBER)  offsetof(_TYPE, _MEMBER)   
+
+#undef IM_NEW
+struct ImNewWrapper {};
+inline void* operator new(size_t, ImNewWrapper, void* ptr) { return ptr; }
+inline void  operator delete(void*, ImNewWrapper, void*) {} // This is only required so we can use the symmetrical new()
+#define IM_NEW(_TYPE)                       new(ImNewWrapper(), igMemAlloc(sizeof(_TYPE))) _TYPE
+
+template<typename T> void IM_DELETE(T* p) { if (p) { p->~T(); igMemFree(p); } }
+
+#define IM_ARRAYSIZE(_ARR)          ((int)(sizeof(_ARR) / sizeof(*(_ARR))))
 
 // We gather version tests as define in order to easily see which features are version-dependent.
 #define GLFW_VERSION_COMBINED           (GLFW_VERSION_MAJOR * 1000 + GLFW_VERSION_MINOR * 100 + GLFW_VERSION_REVISION)
@@ -174,7 +193,7 @@ struct ImGui_ImplGlfw_Data
 // FIXME: some shared resources (mouse cursor shape, gamepad) are mishandled when using multi-context.
 static ImGui_ImplGlfw_Data* ImGui_ImplGlfw_GetBackendData()
 {
-    return igGetCurrentContext() ? (ImGui_ImplGlfw_Data*)igGetIO().BackendPlatformUserData : nullptr;
+    return igGetCurrentContext() ? (ImGui_ImplGlfw_Data*)igGetIO()->BackendPlatformUserData : nullptr;
 }
 
 // Forward Declarations
@@ -310,11 +329,11 @@ static ImGuiKey ImGui_ImplGlfw_KeyToImGuiKey(int key)
 // See https://github.com/ocornut/imgui/issues/6034 and https://github.com/glfw/glfw/issues/1630
 static void ImGui_ImplGlfw_UpdateKeyModifiers(GLFWwindow* window)
 {
-    ImGuiIO& io = igGetIO();
-    ImGuiIO_AddKeyEvent(&io, ImGuiMod_Ctrl,  (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS));
-    ImGuiIO_AddKeyEvent(&io, ImGuiMod_Shift, (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS));
-    ImGuiIO_AddKeyEvent(&io, ImGuiMod_Alt,   (glfwGetKey(window, GLFW_KEY_LEFT_ALT)     == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_ALT)     == GLFW_PRESS));
-    ImGuiIO_AddKeyEvent(&io, ImGuiMod_Super, (glfwGetKey(window, GLFW_KEY_LEFT_SUPER)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)   == GLFW_PRESS));
+    ImGuiIO* io = igGetIO();
+    ImGuiIO_AddKeyEvent(io, ImGuiMod_Ctrl,  (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL) == GLFW_PRESS));
+    ImGuiIO_AddKeyEvent(io, ImGuiMod_Shift, (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT)   == GLFW_PRESS));
+    ImGuiIO_AddKeyEvent(io, ImGuiMod_Alt,   (glfwGetKey(window, GLFW_KEY_LEFT_ALT)     == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_ALT)     == GLFW_PRESS));
+    ImGuiIO_AddKeyEvent(io, ImGuiMod_Super, (glfwGetKey(window, GLFW_KEY_LEFT_SUPER)   == GLFW_PRESS) || (glfwGetKey(window, GLFW_KEY_RIGHT_SUPER)   == GLFW_PRESS));
 }
 
 static bool ImGui_ImplGlfw_ShouldChainCallback(GLFWwindow* window)
@@ -331,9 +350,9 @@ void ImGui_ImplGlfw_MouseButtonCallback(GLFWwindow* window, int button, int acti
 
     ImGui_ImplGlfw_UpdateKeyModifiers(window);
 
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     if (button >= 0 && button < ImGuiMouseButton_COUNT)
-        ImGuiIO_AddMouseButtonEvent(&io, button, action == GLFW_PRESS);
+        ImGuiIO_AddMouseButtonEvent(io, button, action == GLFW_PRESS);
 }
 
 void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
@@ -347,8 +366,8 @@ void ImGui_ImplGlfw_ScrollCallback(GLFWwindow* window, double xoffset, double yo
     return;
 #endif
 
-    ImGuiIO& io = igGetIO();
-    ImGuiIO_AddMouseWheelEvent(&io, (float)xoffset, (float)yoffset);
+    ImGuiIO* io = igGetIO();
+    ImGuiIO_AddMouseWheelEvent(io, (float)xoffset, (float)yoffset);
 }
 
 static int ImGui_ImplGlfw_TranslateUntranslatedKey(int key, int scancode)
@@ -400,12 +419,12 @@ void ImGui_ImplGlfw_KeyCallback(GLFWwindow* window, int keycode, int scancode, i
 
     keycode = ImGui_ImplGlfw_TranslateUntranslatedKey(keycode, scancode);
 
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     ImGuiKey imgui_key = ImGui_ImplGlfw_KeyToImGuiKey(keycode);
     //io.AddKeyEvent(imgui_key, (action == GLFW_PRESS));
     //io.SetKeyEventNativeData(imgui_key, keycode, scancode); // To support legacy indexing (<1.87 user code)
-    ImGuiIO_AddKeyEvent(&io, imgui_key, (action == GLFW_PRESS));
-    ImGuiIO_SetKeyEventNativeData(&io, imgui_key, keycode, scancode, -1);
+    ImGuiIO_AddKeyEvent(io, imgui_key, (action == GLFW_PRESS));
+    ImGuiIO_SetKeyEventNativeData(io, imgui_key, keycode, scancode, -1);
 }
 
 void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)
@@ -414,8 +433,8 @@ void ImGui_ImplGlfw_WindowFocusCallback(GLFWwindow* window, int focused)
     if (bd->PrevUserCallbackWindowFocus != nullptr && ImGui_ImplGlfw_ShouldChainCallback(window))
         bd->PrevUserCallbackWindowFocus(window, focused);
 
-    ImGuiIO& io = igGetIO();
-    ImGuiIO_AddFocusEvent(&io, focused != 0);
+    ImGuiIO* io = igGetIO();
+    ImGuiIO_AddFocusEvent(io, focused != 0);
 }
 
 void ImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y)
@@ -424,8 +443,8 @@ void ImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y)
     if (bd->PrevUserCallbackCursorPos != nullptr && ImGui_ImplGlfw_ShouldChainCallback(window))
         bd->PrevUserCallbackCursorPos(window, x, y);
 
-    ImGuiIO& io = igGetIO();
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    ImGuiIO* io = igGetIO();
+    if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
         int window_x, window_y;
         glfwGetWindowPos(window, &window_x, &window_y);
@@ -433,8 +452,8 @@ void ImGui_ImplGlfw_CursorPosCallback(GLFWwindow* window, double x, double y)
         y += window_y;
     }
 
-    ImGuiIO_AddMousePosEvent(&io, (float)x, (float)y);
-    bd->LastValidMousePos = ImVec2((float)x, (float)y);
+    ImGuiIO_AddMousePosEvent(io, (float)x, (float)y);
+    bd->LastValidMousePos = { (float)x, (float)y };
 }
 
 // Workaround: X11 seems to send spurious Leave/Enter events which would make us lose our position,
@@ -445,17 +464,17 @@ void ImGui_ImplGlfw_CursorEnterCallback(GLFWwindow* window, int entered)
     if (bd->PrevUserCallbackCursorEnter != nullptr && ImGui_ImplGlfw_ShouldChainCallback(window))
         bd->PrevUserCallbackCursorEnter(window, entered);
 
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     if (entered)
     {
         bd->MouseWindow = window;
-        ImGuiIO_AddMousePosEvent(&io, bd->LastValidMousePos.x, bd->LastValidMousePos.y);
+        ImGuiIO_AddMousePosEvent(io, bd->LastValidMousePos.x, bd->LastValidMousePos.y);
     }
     else if (!entered && bd->MouseWindow == window)
     {
-        bd->LastValidMousePos = io.MousePos;
+        bd->LastValidMousePos = io->MousePos;
         bd->MouseWindow = nullptr;
-        ImGuiIO_AddMousePosEvent(&io, -FLT_MAX, -FLT_MAX);
+        ImGuiIO_AddMousePosEvent(io, -FLT_MAX, -FLT_MAX);
     }
 }
 
@@ -465,8 +484,8 @@ void ImGui_ImplGlfw_CharCallback(GLFWwindow* window, unsigned int c)
     if (bd->PrevUserCallbackChar != nullptr && ImGui_ImplGlfw_ShouldChainCallback(window))
         bd->PrevUserCallbackChar(window, c);
 
-    ImGuiIO& io = igGetIO();
-    ImGuiIO_AddInputCharacter(&io, c);
+    ImGuiIO* io = igGetIO();
+    ImGuiIO_AddInputCharacter(io, c);
 }
 
 void ImGui_ImplGlfw_MonitorCallback(GLFWmonitor*, int)
@@ -515,7 +534,7 @@ static LRESULT CALLBACK ImGui_ImplGlfw_WndProc(HWND hWnd, UINT msg, WPARAM wPara
     case WM_RBUTTONDOWN: case WM_RBUTTONDBLCLK: case WM_RBUTTONUP:
     case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK: case WM_MBUTTONUP:
     case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK: case WM_XBUTTONUP:
-        ImGuiIO_AddMouseSourceEvent(&igGetIO(), GetMouseSourceFromMessageExtraInfo());
+        ImGuiIO_AddMouseSourceEvent(igGetIO(), GetMouseSourceFromMessageExtraInfo());
         break;
 
     // We have submitted https://github.com/glfw/glfw/pull/1568 to allow GLFW to support "transparent inputs".
@@ -608,30 +627,30 @@ void ImGui_ImplGlfw_SetCallbacksChainForAllWindows(bool chain_for_all_windows)
 
 static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, GlfwClientApi client_api)
 {
-    ImGuiIO& io = igGetIO();
-    IM_ASSERT(io.BackendPlatformUserData == nullptr && "Already initialized a platform backend!");
+    ImGuiIO* io = igGetIO();
+    IM_ASSERT(io->BackendPlatformUserData == nullptr && "Already initialized a platform backend!");
     //printf("GLFW_VERSION: %d.%d.%d (%d)", GLFW_VERSION_MAJOR, GLFW_VERSION_MINOR, GLFW_VERSION_REVISION, GLFW_VERSION_COMBINED);
 
     // Setup backend capabilities flags
     ImGui_ImplGlfw_Data* bd = IM_NEW(ImGui_ImplGlfw_Data)();
-    io.BackendPlatformUserData = (void*)bd;
-    io.BackendPlatformName = "imgui_impl_glfw";
-    io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
-    io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
+    io->BackendPlatformUserData = (void*)bd;
+    io->BackendPlatformName = "imgui_impl_glfw";
+    io->BackendFlags |= ImGuiBackendFlags_HasMouseCursors;         // We can honor GetMouseCursor() values (optional)
+    io->BackendFlags |= ImGuiBackendFlags_HasSetMousePos;          // We can honor io.WantSetMousePos requests (optional, rarely used)
 #ifndef __EMSCRIPTEN__
-    io.BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;    // We can create multi-viewports on the Platform side (optional)
+    io->BackendFlags |= ImGuiBackendFlags_PlatformHasViewports;    // We can create multi-viewports on the Platform side (optional)
 #endif
 #if GLFW_HAS_MOUSE_PASSTHROUGH || (GLFW_HAS_WINDOW_HOVERED && defined(_WIN32))
-    io.BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport; // We can call io.AddMouseViewportEvent() with correct data (optional)
+    io->BackendFlags |= ImGuiBackendFlags_HasMouseHoveredViewport; // We can call io.AddMouseViewportEvent() with correct data (optional)
 #endif
 
     bd->Window = window;
     bd->Time = 0.0;
     bd->WantUpdateMonitors = true;
 
-    io.SetClipboardTextFn = ImGui_ImplGlfw_SetClipboardText;
-    io.GetClipboardTextFn = ImGui_ImplGlfw_GetClipboardText;
-    io.ClipboardUserData = bd->Window;
+    io->SetClipboardTextFn = ImGui_ImplGlfw_SetClipboardText;
+    io->GetClipboardTextFn = ImGui_ImplGlfw_GetClipboardText;
+    io->ClipboardUserData = bd->Window;
 
     // Create mouse cursors
     // (By design, on X11 cursors are user configurable and some cursors may be missing. When a cursor doesn't exist,
@@ -683,7 +702,7 @@ static bool ImGui_ImplGlfw_Init(GLFWwindow* window, bool install_callbacks, Glfw
 #else
     IM_UNUSED(main_viewport);
 #endif
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         ImGui_ImplGlfw_InitPlatformInterface();
 
     // Windows: register a WndProc hook so we can intercept some messages.
@@ -716,7 +735,7 @@ void ImGui_ImplGlfw_Shutdown()
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     IM_ASSERT(bd != nullptr && "No platform backend to shutdown, or already shutdown?");
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
 
     ImGui_ImplGlfw_ShutdownPlatformInterface();
 
@@ -733,24 +752,24 @@ void ImGui_ImplGlfw_Shutdown()
     bd->GlfwWndProc = nullptr;
 #endif
 
-    io.BackendPlatformName = nullptr;
-    io.BackendPlatformUserData = nullptr;
-    io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad | ImGuiBackendFlags_PlatformHasViewports | ImGuiBackendFlags_HasMouseHoveredViewport);
+    io->BackendPlatformName = nullptr;
+    io->BackendPlatformUserData = nullptr;
+    io->BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad | ImGuiBackendFlags_PlatformHasViewports | ImGuiBackendFlags_HasMouseHoveredViewport);
     IM_DELETE(bd);
 }
 
 static void ImGui_ImplGlfw_UpdateMouseData()
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
-    ImGuiIO& io = igGetIO();
-    ImGuiPlatformIO& platform_io = igGetPlatformIO();
+    ImGuiIO* io = igGetIO();
+    ImGuiPlatformIO* platform_io = igGetPlatformIO();
 
 
     ImGuiID mouse_viewport_id = 0;
-    const ImVec2 mouse_pos_prev = io.MousePos;
-    for (int n = 0; n < platform_io.Viewports.Size; n++)
+    const ImVec2 mouse_pos_prev = io->MousePos;
+    for (int n = 0; n < platform_io->Viewports.Size; n++)
     {
-        ImGuiViewport* viewport = platform_io.Viewports[n];
+        ImGuiViewport* viewport = platform_io->Viewports.Data[n];
         GLFWwindow* window = (GLFWwindow*)viewport->PlatformHandle;
 
 #ifdef __EMSCRIPTEN__
@@ -762,7 +781,7 @@ static void ImGui_ImplGlfw_UpdateMouseData()
         {
             // (Optional) Set OS mouse position from Dear ImGui if requested (rarely used, only when ImGuiConfigFlags_NavEnableSetMousePos is enabled by user)
             // When multi-viewports are enabled, all Dear ImGui positions are same as OS positions.
-            if (io.WantSetMousePos)
+            if (io->WantSetMousePos)
                 glfwSetCursorPos(window, (double)(mouse_pos_prev.x - viewport->Pos.x), (double)(mouse_pos_prev.y - viewport->Pos.y));
 
             // (Optional) Fallback to provide mouse position when focused (ImGui_ImplGlfw_CursorPosCallback already provides this when hovered or captured)
@@ -770,7 +789,7 @@ static void ImGui_ImplGlfw_UpdateMouseData()
             {
                 double mouse_x, mouse_y;
                 glfwGetCursorPos(window, &mouse_x, &mouse_y);
-                if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+                if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
                 {
                     // Single viewport mode: mouse position in client window coordinates (io.MousePos is (0,0) when the mouse is on the upper-left corner of the app window)
                     // Multi-viewport mode: mouse position in OS absolute coordinates (io.MousePos is (0,0) when the mouse is on the upper-left of the primary monitor)
@@ -779,8 +798,8 @@ static void ImGui_ImplGlfw_UpdateMouseData()
                     mouse_x += window_x;
                     mouse_y += window_y;
                 }
-                bd->LastValidMousePos = ImVec2((float)mouse_x, (float)mouse_y);
-                ImGuiIO_AddMousePosEvent(&io, (float)mouse_x, (float)mouse_y);
+                bd->LastValidMousePos = { (float)mouse_x, (float)mouse_y };
+                ImGuiIO_AddMousePosEvent(io, (float)mouse_x, (float)mouse_y);
             }
         }
 
@@ -806,23 +825,23 @@ static void ImGui_ImplGlfw_UpdateMouseData()
 #endif
     }
 
-    if (io.BackendFlags & ImGuiBackendFlags_HasMouseHoveredViewport)
-        ImGuiIO_AddMouseViewportEvent(&io, mouse_viewport_id);
+    if (io->BackendFlags & ImGuiBackendFlags_HasMouseHoveredViewport)
+        ImGuiIO_AddMouseViewportEvent(io, mouse_viewport_id);
 }
 
 static void ImGui_ImplGlfw_UpdateMouseCursor()
 {
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || glfwGetInputMode(bd->Window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
+    if ((io->ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) || glfwGetInputMode(bd->Window, GLFW_CURSOR) == GLFW_CURSOR_DISABLED)
         return;
 
     ImGuiMouseCursor imgui_cursor = igGetMouseCursor();
-    ImGuiPlatformIO& platform_io = igGetPlatformIO();
-    for (int n = 0; n < platform_io.Viewports.Size; n++)
+    ImGuiPlatformIO* platform_io = igGetPlatformIO();
+    for (int n = 0; n < platform_io->Viewports.Size; n++)
     {
-        GLFWwindow* window = (GLFWwindow*)platform_io.Viewports[n]->PlatformHandle;
-        if (imgui_cursor == ImGuiMouseCursor_None || io.MouseDrawCursor)
+        GLFWwindow* window = (GLFWwindow*)platform_io->Viewports.Data[n]->PlatformHandle;
+        if (imgui_cursor == ImGuiMouseCursor_None || io->MouseDrawCursor)
         {
             // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -841,17 +860,17 @@ static void ImGui_ImplGlfw_UpdateMouseCursor()
 static inline float Saturate(float v) { return v < 0.0f ? 0.0f : v  > 1.0f ? 1.0f : v; }
 static void ImGui_ImplGlfw_UpdateGamepads()
 {
-    ImGuiIO& io = igGetIO();
-    if ((io.ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) // FIXME: Technically feeding gamepad shouldn't depend on this now that they are regular inputs.
+    ImGuiIO* io = igGetIO();
+    if ((io->ConfigFlags & ImGuiConfigFlags_NavEnableGamepad) == 0) // FIXME: Technically feeding gamepad shouldn't depend on this now that they are regular inputs.
         return;
 
-    io.BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
+    io->BackendFlags &= ~ImGuiBackendFlags_HasGamepad;
 #if GLFW_HAS_GAMEPAD_API && !defined(__EMSCRIPTEN__)
     GLFWgamepadstate gamepad;
     if (!glfwGetGamepadState(GLFW_JOYSTICK_1, &gamepad))
         return;
-    #define MAP_BUTTON(KEY_NO, BUTTON_NO, _UNUSED)          do { ImGuiIO_AddKeyEvent(&io, KEY_NO, gamepad.buttons[BUTTON_NO] != 0); } while (0)
-    #define MAP_ANALOG(KEY_NO, AXIS_NO, _UNUSED, V0, V1)    do { float v = gamepad.axes[AXIS_NO]; v = (v - V0) / (V1 - V0); ImGuiIO_AddKeyAnalogEvent(&io, KEY_NO, v > 0.10f, Saturate(v)); } while (0)
+    #define MAP_BUTTON(KEY_NO, BUTTON_NO, _UNUSED)          do { ImGuiIO_AddKeyEvent(io, KEY_NO, gamepad.buttons[BUTTON_NO] != 0); } while (0)
+    #define MAP_ANALOG(KEY_NO, AXIS_NO, _UNUSED, V0, V1)    do { float v = gamepad.axes[AXIS_NO]; v = (v - V0) / (V1 - V0); ImGuiIO_AddKeyAnalogEvent(io, KEY_NO, v > 0.10f, Saturate(v)); } while (0)
 #else
     int axes_count = 0, buttons_count = 0;
     const float* axes = glfwGetJoystickAxes(GLFW_JOYSTICK_1, &axes_count);
@@ -861,7 +880,7 @@ static void ImGui_ImplGlfw_UpdateGamepads()
     #define MAP_BUTTON(KEY_NO, _UNUSED, BUTTON_NO)          do { io.AddKeyEvent(KEY_NO, (buttons_count > BUTTON_NO && buttons[BUTTON_NO] == GLFW_PRESS)); } while (0)
     #define MAP_ANALOG(KEY_NO, _UNUSED, AXIS_NO, V0, V1)    do { float v = (axes_count > AXIS_NO) ? axes[AXIS_NO] : V0; v = (v - V0) / (V1 - V0); io.AddKeyAnalogEvent(KEY_NO, v > 0.10f, Saturate(v)); } while (0)
 #endif
-    io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+    io->BackendFlags |= ImGuiBackendFlags_HasGamepad;
     MAP_BUTTON(ImGuiKey_GamepadStart,       GLFW_GAMEPAD_BUTTON_START,          7);
     MAP_BUTTON(ImGuiKey_GamepadBack,        GLFW_GAMEPAD_BUTTON_BACK,           6);
     MAP_BUTTON(ImGuiKey_GamepadFaceLeft,    GLFW_GAMEPAD_BUTTON_X,              2);     // Xbox X, PS Square
@@ -893,7 +912,7 @@ static void ImGui_ImplGlfw_UpdateGamepads()
 static void ImGui_ImplGlfw_UpdateMonitors()
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
-    ImGuiPlatformIO& platform_io = igGetPlatformIO();
+    ImGuiPlatformIO* platform_io = igGetPlatformIO();
     bd->WantUpdateMonitors = false;
 
     int monitors_count = 0;
@@ -901,7 +920,9 @@ static void ImGui_ImplGlfw_UpdateMonitors()
     if (monitors_count == 0) // Preserve existing monitor list if there are none. Happens on macOS sleeping (#5683)
         return;
 
-    platform_io.Monitors.resize(0);
+    platform_io->Monitors.Size = 0;
+    platform_io->Monitors.Capacity = 0;
+    platform_io->Monitors.Data = 0;
     for (int n = 0; n < monitors_count; n++)
     {
         ImGuiPlatformMonitor monitor;
@@ -910,15 +931,15 @@ static void ImGui_ImplGlfw_UpdateMonitors()
         const GLFWvidmode* vid_mode = glfwGetVideoMode(glfw_monitors[n]);
         if (vid_mode == nullptr)
             continue; // Failed to get Video mode (e.g. Emscripten does not support this function)
-        monitor.MainPos = monitor.WorkPos = ImVec2((float)x, (float)y);
-        monitor.MainSize = monitor.WorkSize = ImVec2((float)vid_mode->width, (float)vid_mode->height);
+        monitor.MainPos = monitor.WorkPos = { (float)x, (float)y };
+        monitor.MainSize = monitor.WorkSize = { (float)vid_mode->width, (float)vid_mode->height };
 #if GLFW_HAS_MONITOR_WORK_AREA
         int w, h;
         glfwGetMonitorWorkarea(glfw_monitors[n], &x, &y, &w, &h);
         if (w > 0 && h > 0) // Workaround a small GLFW issue reporting zero on monitor changes: https://github.com/glfw/glfw/pull/1761
         {
-            monitor.WorkPos = ImVec2((float)x, (float)y);
-            monitor.WorkSize = ImVec2((float)w, (float)h);
+            monitor.WorkPos = { (float)x, (float)y };
+            monitor.WorkSize = { (float)w, (float)h };
         }
 #endif
 #if GLFW_HAS_PER_MONITOR_DPI
@@ -928,13 +949,13 @@ static void ImGui_ImplGlfw_UpdateMonitors()
         monitor.DpiScale = x_scale;
 #endif
         monitor.PlatformHandle = (void*)glfw_monitors[n]; // [...] GLFW doc states: "guaranteed to be valid only until the monitor configuration changes"
-        platform_io.Monitors.push_back(monitor);
+        platform_io->Monitors.push_back(monitor);
     }
 }
 
 void ImGui_ImplGlfw_NewFrame()
 {
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     IM_ASSERT(bd != nullptr && "Did you call ImGui_ImplGlfw_InitForXXX()?");
 
@@ -943,9 +964,9 @@ void ImGui_ImplGlfw_NewFrame()
     int display_w, display_h;
     glfwGetWindowSize(bd->Window, &w, &h);
     glfwGetFramebufferSize(bd->Window, &display_w, &display_h);
-    io.DisplaySize = ImVec2((float)w, (float)h);
+    io->DisplaySize = { (float)w, (float)h };
     if (w > 0 && h > 0)
-        io.DisplayFramebufferScale = ImVec2((float)display_w / (float)w, (float)display_h / (float)h);
+        io->DisplayFramebufferScale = { (float)display_w / (float)w, (float)display_h / (float)h };
     if (bd->WantUpdateMonitors)
         ImGui_ImplGlfw_UpdateMonitors();
 
@@ -954,7 +975,7 @@ void ImGui_ImplGlfw_NewFrame()
     double current_time = glfwGetTime();
     if (current_time <= bd->Time)
         current_time = bd->Time + 0.00001f;
-    io.DeltaTime = bd->Time > 0.0 ? (float)(current_time - bd->Time) : (float)(1.0f / 60.0f);
+    io->DeltaTime = bd->Time > 0.0 ? (float)(current_time - bd->Time) : (float)(1.0f / 60.0f);
     bd->Time = current_time;
 
     ImGui_ImplGlfw_UpdateMouseData();
@@ -1145,7 +1166,7 @@ static ImVec2 ImGui_ImplGlfw_GetWindowPos(ImGuiViewport* viewport)
 
     int x = 0, y = 0;
     glfwGetWindowPos(vd->Window, &x, &y);
-    return ImVec2((float)x, (float)y);
+    return { (float)x, (float)y };
 }
 
 static void ImGui_ImplGlfw_SetWindowPos(ImGuiViewport* viewport, ImVec2 pos)
@@ -1160,7 +1181,7 @@ static ImVec2 ImGui_ImplGlfw_GetWindowSize(ImGuiViewport* viewport)
     ImGui_ImplGlfw_ViewportData* vd = (ImGui_ImplGlfw_ViewportData*)viewport->PlatformUserData;
     int w = 0, h = 0;
     glfwGetWindowSize(vd->Window, &w, &h);
-    return ImVec2((float)w, (float)h);
+    return { (float)w, (float)h };
 }
 
 static void ImGui_ImplGlfw_SetWindowSize(ImGuiViewport* viewport, ImVec2 size)
@@ -1259,7 +1280,7 @@ static int ImGui_ImplGlfw_CreateVkSurface(ImGuiViewport* viewport, ImU64 vk_inst
 {
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
     ImGui_ImplGlfw_ViewportData* vd = (ImGui_ImplGlfw_ViewportData*)viewport->PlatformUserData;
-    IM_UNUSED(bd);
+    (void)bd;
     IM_ASSERT(bd->ClientApi == GlfwClientApi_Vulkan);
     VkResult err = glfwCreateWindowSurface((VkInstance)vk_instance, vd->Window, (const VkAllocationCallbacks*)vk_allocator, (VkSurfaceKHR*)out_vk_surface);
     return (int)err;
@@ -1270,25 +1291,25 @@ static void ImGui_ImplGlfw_InitPlatformInterface()
 {
     // Register platform interface (will be coupled with a renderer interface)
     ImGui_ImplGlfw_Data* bd = ImGui_ImplGlfw_GetBackendData();
-    ImGuiPlatformIO& platform_io = igGetPlatformIO();
-    platform_io.Platform_CreateWindow = ImGui_ImplGlfw_CreateWindow;
-    platform_io.Platform_DestroyWindow = ImGui_ImplGlfw_DestroyWindow;
-    platform_io.Platform_ShowWindow = ImGui_ImplGlfw_ShowWindow;
-    platform_io.Platform_SetWindowPos = ImGui_ImplGlfw_SetWindowPos;
-    platform_io.Platform_GetWindowPos = ImGui_ImplGlfw_GetWindowPos;
-    platform_io.Platform_SetWindowSize = ImGui_ImplGlfw_SetWindowSize;
-    platform_io.Platform_GetWindowSize = ImGui_ImplGlfw_GetWindowSize;
-    platform_io.Platform_SetWindowFocus = ImGui_ImplGlfw_SetWindowFocus;
-    platform_io.Platform_GetWindowFocus = ImGui_ImplGlfw_GetWindowFocus;
-    platform_io.Platform_GetWindowMinimized = ImGui_ImplGlfw_GetWindowMinimized;
-    platform_io.Platform_SetWindowTitle = ImGui_ImplGlfw_SetWindowTitle;
-    platform_io.Platform_RenderWindow = ImGui_ImplGlfw_RenderWindow;
-    platform_io.Platform_SwapBuffers = ImGui_ImplGlfw_SwapBuffers;
+    ImGuiPlatformIO* platform_io = igGetPlatformIO();
+    platform_io->Platform_CreateWindow = ImGui_ImplGlfw_CreateWindow;
+    platform_io->Platform_DestroyWindow = ImGui_ImplGlfw_DestroyWindow;
+    platform_io->Platform_ShowWindow = ImGui_ImplGlfw_ShowWindow;
+    platform_io->Platform_SetWindowPos = ImGui_ImplGlfw_SetWindowPos;
+    platform_io->Platform_GetWindowPos = ImGui_ImplGlfw_GetWindowPos;
+    platform_io->Platform_SetWindowSize = ImGui_ImplGlfw_SetWindowSize;
+    platform_io->Platform_GetWindowSize = ImGui_ImplGlfw_GetWindowSize;
+    platform_io->Platform_SetWindowFocus = ImGui_ImplGlfw_SetWindowFocus;
+    platform_io->Platform_GetWindowFocus = ImGui_ImplGlfw_GetWindowFocus;
+    platform_io->Platform_GetWindowMinimized = ImGui_ImplGlfw_GetWindowMinimized;
+    platform_io->Platform_SetWindowTitle = ImGui_ImplGlfw_SetWindowTitle;
+    platform_io->Platform_RenderWindow = ImGui_ImplGlfw_RenderWindow;
+    platform_io->Platform_SwapBuffers = ImGui_ImplGlfw_SwapBuffers;
 #if GLFW_HAS_WINDOW_ALPHA
-    platform_io.Platform_SetWindowAlpha = ImGui_ImplGlfw_SetWindowAlpha;
+    platform_io->Platform_SetWindowAlpha = ImGui_ImplGlfw_SetWindowAlpha;
 #endif
 #if GLFW_HAS_VULKAN
-    platform_io.Platform_CreateVkSurface = ImGui_ImplGlfw_CreateVkSurface;
+    platform_io->Platform_CreateVkSurface = ImGui_ImplGlfw_CreateVkSurface;
 #endif
 
     // Register main window handle (which is owned by the main application, not by us)

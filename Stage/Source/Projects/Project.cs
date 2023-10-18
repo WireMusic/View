@@ -7,7 +7,10 @@ namespace Stage.Projects
 {
     public class Project
     {
+        public delegate void ProjectEventHandler(Project? project);
+
         public static Project? Current;
+        public static event ProjectEventHandler ProjectChanged = project => {};
 
         public string Name = string.Empty;
         public string Description = string.Empty;
@@ -15,14 +18,24 @@ namespace Stage.Projects
         public string Artist = string.Empty;
         public string Genre = string.Empty;
 
+        public string[] Items = new string[0];
+
         // key, genre, etc
 
         public Project()
         {
         }
 
-        public Project(string path)
+        public void Load()
         {
+            Current = this;
+            ProjectChanged(this);
+        }
+
+        public static void Close()
+        {
+            Current = null;
+            ProjectChanged(null);
         }
 
         public static Project Create(string path, string name, string desc, string version, string artist, string genre)

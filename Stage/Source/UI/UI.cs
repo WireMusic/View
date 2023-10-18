@@ -1,6 +1,6 @@
 ﻿using Stage.Core;
 using Stage.ImGui;
-using Stage.Renderer;
+using Stage.Rendering;
 
 using System;
 using System.IO;
@@ -21,7 +21,6 @@ namespace Stage.UIModule
         public static unsafe bool Begin(string title, ref bool showClose, WindowFlags flags = 0)
         {
             bool* ptr = (bool*)Unsafe.AsPointer(ref showClose);
-
             return _imgui.Begin(title, ptr, (int)flags);
         }
 
@@ -59,7 +58,7 @@ namespace Stage.UIModule
 
         public static unsafe void PushStyleVar(StyleVar styleVar, Vector2 value)
         {
-            _imgui.PushStyleVar_Vec2((int)styleVar, value);
+            _imgui.PushStyleVar_Vec2((int)styleVar, &value);
         }
 
         public static unsafe void PopStyleVar(int count = 1)
@@ -69,7 +68,7 @@ namespace Stage.UIModule
 
         public static unsafe void PushStyleColour(StyleColour col, Vector4 value)
         {
-            _imgui.PushStyleColor_Vec4((int)col, value);
+            _imgui.PushStyleColor_Vec4((int)col, &value);
         }
 
         public static unsafe void PopStyleColour(int count = 1)
@@ -84,8 +83,9 @@ namespace Stage.UIModule
             flags |= WindowFlags.NoBringToFrontOnFocus | WindowFlags.NoNavFocus;
 
             nint viewport = _imgui.GetMainViewport();
-            _imgui.SetNextWindowPos(*_helper.ImGuiGetImViewportPos(viewport), 0, new Vector2(0));
-            _imgui.SetNextWindowSize(*_helper.ImGuiGetImViewportSize(viewport), 0);
+            Vector2 pivot = Vector2.Zero;
+            _imgui.SetNextWindowPos(_helper.ImGuiGetImViewportPos(viewport), 0, &pivot);
+            _imgui.SetNextWindowSize(_helper.ImGuiGetImViewportSize(viewport), 0);
             _imgui.SetNextWindowViewport(_helper.ImGuiGetImViewportID(viewport));
             PushStyleVar(StyleVar.WindowRounding, 0.0f);
             PushStyleVar(StyleVar.WindowBorderSize, 0.0f);
@@ -97,7 +97,8 @@ namespace Stage.UIModule
             float minWinSizeX = _helper.ImGuiGetMinWinSizeX();
             _helper.ImGuiSetMinWinSizeX(370.0f);
             uint id = _imgui.GetID("StageDockSpace");
-            _imgui.DockSpace(id, new Vector2(0), 0, nint.Zero);
+            Vector2 size = Vector2.Zero;
+            _imgui.DockSpace(id, &size, 0, nint.Zero);
             _helper.ImGuiSetMinWinSizeX(minWinSizeX);
 
             if (menubar != null)
@@ -108,13 +109,13 @@ namespace Stage.UIModule
 
         public static unsafe bool ImageButton(Texture texture, string id, Vector2? size = null, Vector2? uv0 = null, Vector2? uv1 = null, Vector4? bgCol = null, Vector4? tintCol = null)
         {
-            size = size ?? new Vector2(texture.Width, texture.Height);
-            uv0 = uv0 ?? new Vector2(0);
-            uv1 = uv1 ?? new Vector2(1);
-            bgCol = bgCol ?? new Vector4(0);
-            tintCol = tintCol ?? new Vector4(1);
+            Vector2 newSize = size ?? new Vector2(texture.Width, texture.Height);
+            Vector2 newUv0 = uv0 ?? new Vector2(0);
+            Vector2 newUv1 = uv1 ?? new Vector2(1);
+            Vector4 newBgCol = bgCol ?? new Vector4(0);
+            Vector4 newTintCol = tintCol ?? new Vector4(1);
 
-            return _imgui.ImageButton(id, (nint)texture.GetID(), size.Value, uv0.Value, uv1.Value, bgCol.Value, tintCol.Value);
+            return _imgui.ImageButton(id, (nint)texture.GetID(), &newSize, &newUv0, &newUv1, &newBgCol, &newTintCol);
         }
 
         public static unsafe void Columns(int count, string id, bool border = true)
@@ -149,7 +150,7 @@ namespace Stage.UIModule
             return val;
         }
 
-        public static unsafe DrawList GetWindowDrawList()
+        internal static unsafe DrawList GetWindowDrawList()
         {
             nint ptr = _imgui.GetWindowDrawList();
             return new DrawList(ptr);
@@ -283,22 +284,90 @@ namespace Stage.UIModule
 
         public static unsafe bool Button(string label)
         {
-            return _imgui.Button(label, Vector2.Zero);
+            Vector2 size = Vector2.Zero;
+            return _imgui.Button(label, &size);
         }
 
         public static unsafe bool Button(string label, Vector2 size)
         {
-            return _imgui.Button(label, size);
+            return _imgui.Button(label, &size);
         }
 
         public static unsafe bool Button(string label, ButtonFlags flags)
         {
-            return _imgui.ButtonEx(label, Vector2.Zero, (int)flags);
+            Vector2 size = Vector2.Zero;
+            return _imgui.ButtonEx(label, &size, (int)flags);
+        }
+        
+        public static unsafe bool InvisibleButton(string id, Vector2 size, ButtonFlags flags = 0)
+        {
+            return _imgui.InvisibleButton(id, &size, (int)flags);
+        }
+
+        public static unsafe bool IsItemHovered()
+        {
+            // TODO: hovered flags
+            return _imgui.IsItemHovered(0);
+        }
+
+        public static unsafe bool IsItemActive()
+        {
+            return _imgui.IsItemActive();
+        }
+
+        public static unsafe Vector2 GetMousePos()
+        {
+            // TODO: Move to ImGuiIO
+            _helper.ImGuiIO_GetMousePos(out Vector2 value);
+            return value;
+        }
+
+        public static unsafe bool IsMouseClicked(MouseButton button, bool repeat = false)
+        {
+            return _imgui.IsMouseClicked((int)button, repeat);
+        }
+
+        public static unsafe bool IsMouseDown(MouseButton button)
+        {
+            return _imgui.IsMouseDown((int)button);
+        }
+
+        public static unsafe bool IsMouseDragging(MouseButton button, float lockThreshold = -1.0f)
+        {
+            return _imgui.IsMouseDragging((int)button, lockThreshold);
+        }
+
+        public static unsafe Vector2 GetMouseDragDelta(MouseButton button, float lockThreshold = -1.0f)
+        {
+            _imgui.GetMouseDragDelta(out Vector2 value, (int)button, lockThreshold);
+            return value;
+        }
+
+        public static unsafe Vector2 GetMouseDelta()
+        {
+            // TODO: Move to ImGuiIO
+            _helper.ImGuiIO_GetMouseDelta(out Vector2 value);
+            return value;
+        }
+
+        public static unsafe bool MenuItem(string label, string shortcut = "", bool selected = false, bool enabled = true)
+        {
+            return _imgui.MenuItem_Bool(label, shortcut, selected, enabled);
+        }
+
+        public static unsafe void OpenPopupOnItemClick(string id, MouseButton flags = 0)
+        {
+            _imgui.OpenPopupOnItemClick(id, (int)flags);
+        }
+
+        public static unsafe bool BeginPopup(string id, WindowFlags flags = 0)
+        {
+            return _imgui.BeginPopup(id, (int)flags);
         }
 
         public static unsafe bool Button(string label, Vector2 size, ButtonFlags flags)
         {
-            return _imgui.ButtonEx(label, size, (int)flags);
+            return _imgui.ButtonEx(label, &size, (int)flags);
         }
 
         public static unsafe bool Checkpoint(string label, ref bool value)
@@ -367,7 +436,15 @@ namespace Stage.UIModule
 
         public static unsafe uint GetColourU32(Vector4 colour)
         {
-            return _imgui.GetColorU32_Vec4(colour);
+            colour.W *= _helper.ImGuiStyle_GetAlpha();
+
+            uint value;
+            value =  (uint)((int)(((colour.X < 0.0f) ? 0.0f : (colour.X > 1.0f) ? 1.0f : colour.X) * 255.0f + 0.5f)) << 16;
+            value |= (uint)((int)(((colour.Y < 0.0f) ? 0.0f : (colour.Y > 1.0f) ? 1.0f : colour.Y) * 255.0f + 0.5f)) << 8;
+            value |= (uint)((int)(((colour.Z < 0.0f) ? 0.0f : (colour.Z > 1.0f) ? 1.0f : colour.Z) * 255.0f + 0.5f)) << 0;
+            value |= (uint)((int)(((colour.W < 0.0f) ? 0.0f : (colour.W > 1.0f) ? 1.0f : colour.W) * 255.0f + 0.5f)) << 24;
+
+            return value;
         }
 
         public static unsafe void AlignText(float offset = 1.0f)
@@ -403,22 +480,23 @@ namespace Stage.UIModule
 
         public static unsafe void SetNextWindowSize(Vector2 size)
         {
-            _imgui.SetNextWindowSize(size, 0);
+            _imgui.SetNextWindowSize(&size, 0);
         }
 
         public static unsafe void SetNextWindowPos(Vector2 pos, UICondition condition = 0)
         {
-            _imgui.SetNextWindowPos(pos, (int)condition, Vector2.Zero);
+            Vector2 pivot = Vector2.Zero;
+            _imgui.SetNextWindowPos(&pos, (int)condition, &pivot);
         }
 
         public static unsafe void SetNextWindowPos(Vector2 pos, Vector2 pivot)
         {
-            _imgui.SetNextWindowPos(pos, 0, pivot);
+            _imgui.SetNextWindowPos(&pos, 0, &pivot);
         }
 
         public static unsafe void SetNextWindowPos(Vector2 pos, UICondition condition, Vector2 pivot)
         {
-            _imgui.SetNextWindowPos(pos, (int)condition, pivot);
+            _imgui.SetNextWindowPos(&pos, (int)condition, &pivot);
         }
 
         public static unsafe bool BeginModalPopup(string name, WindowFlags flags = 0)
@@ -450,6 +528,12 @@ namespace Stage.UIModule
         public static unsafe void SetCursorPosY(float local_y)
         {
             _imgui.SetCursorPosY(local_y);
+        }
+
+        public static unsafe void SetCursorPos(Vector2 local_pos)
+        {
+            _imgui.SetCursorPosX(local_pos.X);
+            _imgui.SetCursorPosY(local_pos.Y);
         }
 
         public static unsafe Vector2 GetContentRegionAvailable()
@@ -484,8 +568,6 @@ namespace Stage.UIModule
                     secondaryWindow: true, freezeOtherWindows: true);
             }
 
-            m_ModalCount++;
-
             if (!m_ModalWindow.ShouldClose)
             {
                 Window.SecondWindowBeginUI(Application.Instance.Window, m_ModalWindow);
@@ -496,6 +578,7 @@ namespace Stage.UIModule
                 SetNextWindowSize(DisplaySize());
                 SetNextWindowPos(GetCurrentViewportCenter(), new Vector2(0.5f));
 
+                m_ModalCount++;
                 Begin(title, flags);
                 return true;
             }
@@ -777,525 +860,6 @@ namespace Stage.UIModule
         public static unsafe Vector2 DisplaySize()
         {
             return *_helper.ImGuiIOGetDisplaySize();
-        }
-    }
-
-    // TODO
-    public struct DrawList
-    {
-        private nint m_Ptr;
-
-        public unsafe List<DrawCommand> CmdBuffer
-        {
-            get
-            {
-                List<DrawCommand> result = new List<DrawCommand>();
-                void** ptrs = _helper.DrawList_GetCmdBuffer(m_Ptr, out int size);
-
-                for (int i = 0; i < size; i++)
-                {
-                    result.Add(new DrawCommand(new nint(ptrs[i])));
-                }
-
-                return result;
-            }
-            set
-            {
-                DrawCommand[] arr = (DrawCommand[])typeof(List<DrawCommand>).GetField("_items", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(value);
-
-                if (arr == null)
-                    throw new Exception();
-
-                fixed (void** ptr = new void*[arr.Length])
-                {
-                    for (int i = 0; i < arr.Length; i++)
-                    {
-                        ptr[i] = (void*)arr[i].m_Ptr;
-                    }
-
-                    _helper.DrawList_SetCmdBuffer(m_Ptr, ptr, arr.Length);
-                }
-            }
-        }
-
-        // TODO
-        public List<ushort> IdxBuffer
-        {
-            get
-            {
-                return new List<ushort>();
-            }
-            set
-            {
-
-            }
-        }
-
-        // TODO
-        public List<DrawVert> VtxBuffer
-        {
-            get
-            {
-                return new List<DrawVert>();
-            }
-            set
-            {
-
-            }
-        }
-
-        // TODO
-        public DrawListFlags Flags
-        {
-            get
-            {
-                return 0;
-            }
-            set
-            {
-
-            }
-        }
-
-        public DrawList(nint ptr)
-        {
-            m_Ptr = ptr;
-        }
-
-        public unsafe void PushClipRect(Vector2 clip_rect_min, Vector2 clip_rect_max, bool intersect_with_current_clip_rect = false)
-        {
-            _imgui.ImDrawList_PushClipRect(m_Ptr, &clip_rect_min, &clip_rect_max, intersect_with_current_clip_rect);
-        }
-
-        public unsafe void PushClipRectFullScreen()
-        {
-            _imgui.ImDrawList_PushClipRectFullScreen(m_Ptr);
-        }
-
-        public unsafe void PopClipRect()
-        {
-            _imgui.ImDrawList_PopClipRect(m_Ptr);
-        }
-
-        public unsafe void PushTextureID(nint textureID)
-        {
-            _imgui.ImDrawList_PushTextureID(m_Ptr, textureID);
-        }
-
-        public unsafe void PopTextureID()
-        {
-            _imgui.ImDrawList_PopTextureID(m_Ptr);
-        }
-
-        public unsafe Vector2 GetClipRectMin()
-        {
-            _imgui.ImDrawList_GetClipRectMin(out Vector2 val, m_Ptr);
-            return val;
-        }
-
-        public unsafe Vector2 GetClipRectMax()
-        {
-            _imgui.ImDrawList_GetClipRectMax(out Vector2 val, m_Ptr);
-            return val;
-        }
-
-        public unsafe void AddLine(Vector2 point1, Vector2 point2, Vector4 colour, float thickness = 1.0f)
-        {
-            _imgui.ImDrawList_AddLine(m_Ptr, &point1, &point2, _imgui.GetColorU32_Vec4(colour), thickness);
-        }
-
-        public unsafe void AddRect(Vector2 min, Vector2 max, Vector4 colour, float rounding = 0.0f, DrawFlags flags = 0, float thickness = 1.0f)
-        {
-            _imgui.ImDrawList_AddRect(m_Ptr, &min, &max, _imgui.GetColorU32_Vec4(colour), rounding, (int)flags, thickness);
-        }
-
-        public unsafe void AddRectFilled(Vector2 min, Vector2 max, Vector4 colour, float rounding = 0.0f, DrawFlags flags = 0)
-        {
-            _imgui.ImDrawList_AddRectFilled(m_Ptr, &min, &max, _imgui.GetColorU32_Vec4(colour), rounding, (int)flags);
-        }
-
-        public unsafe void AddRectFilledMultiColor(Vector2 min, Vector2 max, Vector4 colourTL, Vector4 colourTR, Vector4 colourBR, Vector4 colourBL)
-        {
-            _imgui.ImDrawList_AddRectFilledMultiColor(m_Ptr, &min, &max, _imgui.GetColorU32_Vec4(colourTL), _imgui.GetColorU32_Vec4(colourTR), _imgui.GetColorU32_Vec4(colourBR), _imgui.GetColorU32_Vec4(colourBL));
-        }
-
-        public unsafe void AddQuad(Vector2 point1, Vector2 point2, Vector2 point3, Vector2 point4, Vector4 colour)
-        {
-            _imgui.ImDrawList_AddQuad(m_Ptr, &point1, &point2, &point3, &point4, _imgui.GetColorU32_Vec4(colour));
-        }
-
-        public void AddQuadFilled()
-        {
-
-        }
-
-        public void AddTriangle()
-        {
-
-        }
-
-        public void AddTriangleFilled()
-        {
-
-        }
-
-        public void AddCircle()
-        {
-
-        }
-
-        public void AddCircleFilled()
-        {
-
-        }
-
-        public void AddNgon()
-        {
-
-        }
-
-        public void AddNgonFilled()
-        {
-
-        }
-
-        public void AddText()
-        {
-
-        }
-
-        /*public void AddText()
-        {
-
-        }*/
-
-        public void AddPolyline()
-        {
-
-        }
-
-        public void AddConvexPolyFilled()
-        {
-
-        }
-
-        public void AddBezierCubic()
-        {
-
-        }
-
-        public void AddBezierQuadratic()
-        {
-
-        }
-
-        public void AddImage()
-        {
-
-        }
-
-        public void AddImageQuad()
-        {
-
-        }
-
-        public void AddImageRounded()
-        {
-
-        }
-
-        public void PathClear()
-        {
-
-        }
-
-        public void PathLineTo()
-        {
-
-        }
-
-        public void PathLineToMergeDuplicate()
-        {
-
-        }
-
-        public void PathFillConvex()
-        {
-
-        }
-
-        public void PathStroke()
-        {
-
-        }
-
-        public void PathArcTo()
-        {
-
-        }
-        
-        public void PathArcToFast()
-        {
-
-        }
-
-        public void PathBezierCubicCurveTo()
-        {
-
-        }
-
-        public void PathBezierQuadraticCurveTo()
-        {
-
-        }
-
-        public void PathRect()
-        {
-
-        }
-
-        public void AddCallback()
-        {
-
-        }
-
-        public void AddDrawCmd()
-        {
-
-        }
-
-        public void CloneOutput()
-        {
-
-        }
-
-        public void ChannelsSplit()
-        {
-
-        }
-
-        public void ChannelsMerge()
-        {
-
-        }
-
-        public void ChannelsSetCurrent()
-        {
-
-        }
-
-        public void PrimReserve()
-        {
-
-        }
-
-        public void PrimUnreserve()
-        {
-
-        }
-
-        public void PrimRect()
-        {
-
-        }
-
-        public void PrimRectUV()
-        {
-
-        }
-
-        public void PrimQuadUV()
-        {
-
-        }
-
-        public void PrimWriteVtx()
-        {
-
-        }
-
-        public void PrimWriteIdx()
-        {
-
-        }
-
-        public void PrimVtx()
-        {
-
-        }
-    }
-
-    public enum DrawFlags
-    {
-        None = 0,
-        Closed = 1 << 0,
-        RoundCornersTopLeft = 1 << 4,
-        RoundCornersTopRight = 1 << 5,
-        RoundCornersBottomLeft = 1 << 6,
-        RoundCornersBottomRight = 1 << 7,
-        RoundCornersNone = 1 << 8,
-        RoundCornersTop = RoundCornersTopLeft | RoundCornersTopRight,
-        RoundCornersBottom = RoundCornersBottomLeft | RoundCornersBottomRight,
-        RoundCornersLeft = RoundCornersBottomLeft | RoundCornersTopLeft,
-        RoundCornersRight = RoundCornersBottomRight | RoundCornersTopRight,
-        RoundCornersAll = RoundCornersTopLeft | RoundCornersTopRight | RoundCornersBottomLeft | RoundCornersBottomRight,
-    }
-
-    public enum DrawListFlags
-    {
-        None = 0,
-        AntiAliasedLines = 1 << 0,
-        AntiAliasedLinesUseTex = 1 << 1,
-        AntiAliasedFill = 1 << 2,
-        AllowVtxOffset = 1 << 3,
-    }
-
-    public unsafe struct DrawVert
-    {
-        private nint m_Ptr;
-
-        public Vector2 Pos
-        {
-            get
-            {
-                _helper.ImDrawVert_GetPos(m_Ptr, out Vector2 result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawVert_SetPos(m_Ptr, ref value);
-            }
-        }
-
-        public Vector2 Uv
-        {
-            get
-            {
-                _helper.ImDrawVert_GetUv(m_Ptr, out Vector2 result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawVert_SetUv(m_Ptr, ref value);
-            }
-        }
-
-        public uint Col
-        {
-            get
-            {
-                _helper.ImDrawVert_GetCol(m_Ptr, out uint result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawVert_SetCol(m_Ptr, value);
-            }
-        }
-
-        public DrawVert(nint ptr)
-        {
-            m_Ptr = ptr;
-        }
-    }
-
-    public unsafe struct DrawCommand
-    {
-        internal nint m_Ptr;
-
-        public Vector4 ClipRect
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetClipRect(m_Ptr, out Vector4 val);
-                return val;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetClipRect(m_Ptr, ref value);
-            }
-        }
-
-        public nint TextureID
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetTextureID(m_Ptr, out nint result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetTextureID(m_Ptr, value);
-            }
-        }
-
-        public uint VtxOffset
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetVtxOffset(m_Ptr, out uint result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetVtxOffset(m_Ptr, value);
-            }
-        }
-
-        public uint IdxOffset
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetIdxOffset(m_Ptr, out uint result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetIdxOffset(m_Ptr, value);
-            }
-        }
-
-        public uint ElemCount
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetElemCount(m_Ptr, out uint result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetElemCount(m_Ptr, value);
-            }
-        }
-
-        public delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void> UserCallback
-        {
-            get
-            {
-                _helper.ImDrawCmd_GetUserCallback(m_Ptr, out delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void> result);
-                return result;
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetUserCallback(m_Ptr, value);
-            }
-        }
-
-        public void* UserCallbackData
-        {
-            get
-            {
-                return _helper.ImDrawCmd_GetUserCallbackData(m_Ptr);
-            }
-            set
-            {
-                _helper.ImDrawCmd_SetUserCallbackData(m_Ptr, value);
-            }
-        }
-
-        public DrawCommand(nint ptr)
-        {
-            m_Ptr = ptr;
         }
     }
 

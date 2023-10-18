@@ -73,29 +73,9 @@ namespace View.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
-        internal static byte[] glad {
-            get {
-                object obj = ResourceManager.GetObject("glad", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
         internal static byte[] glfw3 {
             get {
                 object obj = ResourceManager.GetObject("glfw3", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] input {
-            get {
-                object obj = ResourceManager.GetObject("input", resourceCulture);
                 return ((byte[])(obj));
             }
         }

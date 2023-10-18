@@ -53,10 +53,6 @@ Index of this file:
 
 #pragma once
 
-#include "../src/mview.h"
-MV_IMPORT void* igMemAlloc(size_t size);
-MV_IMPORT void igMemFree(void* ptr);
-
 // Configuration file with compile-time options
 // (edit imconfig.h or '#define IMGUI_USER_CONFIG "myfilename.h" from your build system')
 #ifdef IMGUI_USER_CONFIG
@@ -2683,9 +2679,6 @@ struct ImDrawChannel
     ImVector<ImDrawIdx>         _IdxBuffer;
 };
 
-
-MV_IMPORT void ImDrawListSplitter_ClearFreeMemory(ImDrawListSplitter* self);
-
 // Split/Merge functions are used to split the draw list into different layers which can be drawn into out of order.
 // This is used by the Columns/Tables API, so items of each column can be batched together in a same draw call.
 struct ImDrawListSplitter
@@ -2695,7 +2688,19 @@ struct ImDrawListSplitter
     ImVector<ImDrawChannel>     _Channels;   // Draw channels (not resized down so _Count might be < Channels.Size)
 
     inline ImDrawListSplitter()  { memset(this, 0, sizeof(*this)); }
-    inline ~ImDrawListSplitter() { ImDrawListSplitter_ClearFreeMemory(this); }
+    inline ~ImDrawListSplitter() 
+    { 
+        for (int i = 0; i < _Channels.Size; i++)
+        {
+            if (i == _Current)
+                memset(&_Channels[i], 0, sizeof(_Channels[i]));  // Current channel is a copy of CmdBuffer/IdxBuffer, don't destruct again
+            _Channels[i]._CmdBuffer.clear();
+            _Channels[i]._IdxBuffer.clear();
+        }
+        _Current = 0;
+        _Count = 1;
+        _Channels.clear();
+    }
     inline void                 Clear() { _Current = 0; _Count = 1; } // Do not clear Channels[] so our allocations are reused next frame
     IMGUI_API void              ClearFreeMemory();
     IMGUI_API void              Split(ImDrawList* draw_list, int count);
@@ -2734,8 +2739,6 @@ enum ImDrawListFlags_
     ImDrawListFlags_AllowVtxOffset          = 1 << 3,  // Can emit 'VtxOffset > 0' to allow large meshes. Set when 'ImGuiBackendFlags_RendererHasVtxOffset' is enabled.
 };
 
-MV_IMPORT void ImDrawList__ClearFreeMemory(ImDrawList* self);
-
 // Draw command list
 // This is the low-level list of polygons that ImGui:: functions are filling. At the end of the frame,
 // all command lists are passed to your ImGuiIO::RenderDrawListFn function for rendering.
@@ -2769,7 +2772,20 @@ struct ImDrawList
     // If you want to create ImDrawList instances, pass them ImGui::GetDrawListSharedData() or create and use your own ImDrawListSharedData (so you can use ImDrawList without ImGui)
     ImDrawList(ImDrawListSharedData* shared_data) { memset(this, 0, sizeof(*this)); _Data = shared_data; }
 
-    ~ImDrawList() { ImDrawList__ClearFreeMemory(this); }
+    ~ImDrawList() 
+    {
+        CmdBuffer.clear();
+        IdxBuffer.clear();
+        VtxBuffer.clear();
+        Flags = ImDrawListFlags_None;
+        _VtxCurrentIdx = 0;
+        _VtxWritePtr = NULL;
+        _IdxWritePtr = NULL;
+        _ClipRectStack.clear();
+        _TextureIdStack.clear();
+        _Path.clear();
+        _Splitter.ClearFreeMemory();
+    }
     IMGUI_API void  PushClipRect(const ImVec2& clip_rect_min, const ImVec2& clip_rect_max, bool intersect_with_current_clip_rect = false);  // Render-level scissoring. This is passed down to your render function but not used for CPU-side coarse clipping. Prefer using higher-level ImGui::PushClipRect() to affect logic (hit-testing and widget culling)
     IMGUI_API void  PushClipRectFullScreen();
     IMGUI_API void  PopClipRect();
@@ -3479,110 +3495,5 @@ enum ImGuiModFlags_ { ImGuiModFlags_None = 0, ImGuiModFlags_Ctrl = ImGuiMod_Ctrl
 #ifdef IMGUI_INCLUDE_IMGUI_USER_H
 #include "imgui_user.h"
 #endif
-
-typedef unsigned int uint32_t;
-
-MV_IMPORT ImGuiContext* igGetCurrentContext();
-MV_IMPORT ImGuiIO& igGetIO();
-MV_IMPORT ImGuiPlatformIO& igGetPlatformIO();
-MV_IMPORT ImGuiViewport* igGetMainViewport();
-MV_IMPORT ImGuiMouseCursor igGetMouseCursor();
-MV_IMPORT ImGuiViewport* igFindViewportByPlatformHandle(void* platform_handle);
-MV_IMPORT int igGetFrameCount();
-MV_IMPORT ImDrawList* igGetWindowDrawList();
-MV_IMPORT void ImDrawList_PushClipRect(ImDrawList* self, const ImVec2 clip_rect_min, const ImVec2 clip_rect_max, bool intersect_with_current_clip_rect);
-MV_IMPORT void ImDrawList_PushClipRectFullScreen(ImDrawList* self);
-MV_IMPORT void ImDrawList_PopClipRect(ImDrawList* self);
-MV_IMPORT void ImDrawList_PushTextureID(ImDrawList* self, ImTextureID texture_id);
-MV_IMPORT void ImDrawList_PopTextureID(ImDrawList* self);
-MV_IMPORT void ImDrawList_GetClipRectMin(ImVec2* pOut, ImDrawList* self);
-MV_IMPORT void ImDrawList_GetClipRectMax(ImVec2* pOut, ImDrawList* self);
-MV_IMPORT void ImDrawList_AddLine(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, ImU32 col, float thickness);
-MV_IMPORT void ImDrawList_AddRect(ImDrawList* self, const ImVec2 p_min, const ImVec2 p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness);
-MV_IMPORT void ImDrawList_AddRectFilled(ImDrawList* self, const ImVec2 p_min, const ImVec2 p_max, ImU32 col, float rounding, ImDrawFlags flags);
-MV_IMPORT void ImDrawList_AddRectFilledMultiColor(ImDrawList* self, const ImVec2 p_min, const ImVec2 p_max, ImU32 col_upr_left, ImU32 col_upr_right, ImU32 col_bot_right, ImU32 col_bot_left);
-MV_IMPORT void ImDrawList_AddQuad(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, const ImVec2 p4, ImU32 col, float thickness);
-MV_IMPORT void ImDrawList_AddQuadFilled(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, const ImVec2 p4, ImU32 col);
-MV_IMPORT void ImDrawList_AddTriangle(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, ImU32 col, float thickness);
-MV_IMPORT void ImDrawList_AddTriangleFilled(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, ImU32 col);
-MV_IMPORT void ImDrawList_AddCircle(ImDrawList* self, const ImVec2 center, float radius, ImU32 col, int num_segments, float thickness);
-MV_IMPORT void ImDrawList_AddCircleFilled(ImDrawList* self, const ImVec2 center, float radius, ImU32 col, int num_segments);
-MV_IMPORT void ImDrawList_AddNgon(ImDrawList* self, const ImVec2 center, float radius, ImU32 col, int num_segments, float thickness);
-MV_IMPORT void ImDrawList_AddNgonFilled(ImDrawList* self, const ImVec2 center, float radius, ImU32 col, int num_segments);
-MV_IMPORT void ImDrawList_AddText_Vec2(ImDrawList* self, const ImVec2 pos, ImU32 col, const char* text_begin, const char* text_end);
-MV_IMPORT void ImDrawList_AddText_FontPtr(ImDrawList* self, const ImFont* font, float font_size, const ImVec2 pos, ImU32 col, const char* text_begin, const char* text_end, float wrap_width, const ImVec4* cpu_fine_clip_rect);
-MV_IMPORT void ImDrawList_AddPolyline(ImDrawList* self, const ImVec2* points, int num_points, ImU32 col, ImDrawFlags flags, float thickness);
-MV_IMPORT void ImDrawList_AddConvexPolyFilled(ImDrawList* self, const ImVec2* points, int num_points, ImU32 col);
-MV_IMPORT void ImDrawList_AddBezierCubic(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, const ImVec2 p4, ImU32 col, float thickness, int num_segments);
-MV_IMPORT void ImDrawList_AddBezierQuadratic(ImDrawList* self, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, ImU32 col, float thickness, int num_segments);
-MV_IMPORT void ImDrawList_AddImage(ImDrawList* self, ImTextureID user_texture_id, const ImVec2 p_min, const ImVec2 p_max, const ImVec2 uv_min, const ImVec2 uv_max, ImU32 col);
-MV_IMPORT void ImDrawList_AddImageQuad(ImDrawList* self, ImTextureID user_texture_id, const ImVec2 p1, const ImVec2 p2, const ImVec2 p3, const ImVec2 p4, const ImVec2 uv1, const ImVec2 uv2, const ImVec2 uv3, const ImVec2 uv4, ImU32 col);
-MV_IMPORT void ImDrawList_AddImageRounded(ImDrawList* self, ImTextureID user_texture_id, const ImVec2 p_min, const ImVec2 p_max, const ImVec2 uv_min, const ImVec2 uv_max, ImU32 col, float rounding, ImDrawFlags flags);
-MV_IMPORT void ImDrawList_PathClear(ImDrawList* self);
-MV_IMPORT void ImDrawList_PathLineTo(ImDrawList* self, const ImVec2 pos);
-MV_IMPORT void ImDrawList_PathLineToMergeDuplicate(ImDrawList* self, const ImVec2 pos);
-MV_IMPORT void ImDrawList_PathFillConvex(ImDrawList* self, ImU32 col);
-MV_IMPORT void ImDrawList_PathStroke(ImDrawList* self, ImU32 col, ImDrawFlags flags, float thickness);
-MV_IMPORT void ImDrawList_PathArcTo(ImDrawList* self, const ImVec2 center, float radius, float a_min, float a_max, int num_segments);
-MV_IMPORT void ImDrawList_PathArcToFast(ImDrawList* self, const ImVec2 center, float radius, int a_min_of_12, int a_max_of_12);
-MV_IMPORT void ImDrawList_PathBezierCubicCurveTo(ImDrawList* self, const ImVec2 p2, const ImVec2 p3, const ImVec2 p4, int num_segments);
-MV_IMPORT void ImDrawList_PathBezierQuadraticCurveTo(ImDrawList* self, const ImVec2 p2, const ImVec2 p3, int num_segments);
-MV_IMPORT void ImDrawList_PathRect(ImDrawList* self, const ImVec2 rect_min, const ImVec2 rect_max, float rounding, ImDrawFlags flags);
-MV_IMPORT void ImDrawList_AddCallback(ImDrawList* self, ImDrawCallback callback, void* callback_data);
-MV_IMPORT void ImDrawList_AddDrawCmd(ImDrawList* self);
-MV_IMPORT ImDrawList* ImDrawList_CloneOutput(ImDrawList* self);
-MV_IMPORT void ImDrawList_ChannelsSplit(ImDrawList* self, int count);
-MV_IMPORT void ImDrawList_ChannelsMerge(ImDrawList* self);
-MV_IMPORT void ImDrawList_ChannelsSetCurrent(ImDrawList* self, int n);
-MV_IMPORT void ImDrawList_PrimReserve(ImDrawList* self, int idx_count, int vtx_count);
-MV_IMPORT void ImDrawList_PrimUnreserve(ImDrawList* self, int idx_count, int vtx_count);
-MV_IMPORT void ImDrawList_PrimRect(ImDrawList* self, const ImVec2 a, const ImVec2 b, ImU32 col);
-MV_IMPORT void ImDrawList_PrimRectUV(ImDrawList* self, const ImVec2 a, const ImVec2 b, const ImVec2 uv_a, const ImVec2 uv_b, ImU32 col);
-MV_IMPORT void ImDrawList_PrimQuadUV(ImDrawList* self, const ImVec2 a, const ImVec2 b, const ImVec2 c, const ImVec2 d, const ImVec2 uv_a, const ImVec2 uv_b, const ImVec2 uv_c, const ImVec2 uv_d, ImU32 col);
-MV_IMPORT void ImDrawList_PrimWriteVtx(ImDrawList* self, const ImVec2 pos, const ImVec2 uv, ImU32 col);
-MV_IMPORT void ImDrawList_PrimWriteIdx(ImDrawList* self, ImDrawIdx idx);
-MV_IMPORT void ImDrawList_PrimVtx(ImDrawList* self, const ImVec2 pos, const ImVec2 uv, ImU32 col);
-MV_IMPORT void igDestroyPlatformWindows();
-MV_IMPORT void ImFontAtlas_GetTexDataAsRGBA32(ImFontAtlas* self,unsigned char** out_pixels,int* out_width,int* out_height,int* out_bytes_per_pixel);
-MV_IMPORT void ImFontAtlas_SetTexID(ImFontAtlas* self,ImTextureID id);
-MV_IMPORT ImFont* ImFontAtlas_AddFontFromFileTTF(ImFontAtlas* self,const char* filename,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
-MV_IMPORT ImFont* ImFontAtlas_AddFontFromMemoryTTF(ImFontAtlas* self,void* font_data,int font_size,float size_pixels,const ImFontConfig* font_cfg,const ImWchar* glyph_ranges);
-MV_IMPORT void ImGuiIO_SetKeyEventNativeData(ImGuiIO* self,ImGuiKey key,int native_keycode,int native_scancode,int native_legacy_index);
-MV_IMPORT void ImGuiIO_AddInputCharacter(ImGuiIO* self, uint32_t c);
-MV_IMPORT void ImGuiIO_AddFocusEvent(ImGuiIO* self, bool focused);
-MV_IMPORT void ImGuiIO_AddMouseViewportEvent(ImGuiIO* self,ImGuiID id);
-MV_IMPORT void ImGuiIO_AddKeyEvent(ImGuiIO* self,ImGuiKey key,bool down);
-MV_IMPORT void ImGuiIO_AddMouseSourceEvent(ImGuiIO* self,ImGuiMouseSource source);
-MV_IMPORT void ImGuiIO_AddMouseWheelEvent(ImGuiIO* self,float wheel_x,float wheel_y);
-MV_IMPORT void ImGuiIO_AddMouseButtonEvent(ImGuiIO* self,int button,bool down);
-MV_IMPORT void ImGuiIO_AddMousePosEvent(ImGuiIO* self,float x,float y);
-MV_IMPORT void ImGuiIO_AddKeyAnalogEvent(ImGuiIO* self,ImGuiKey key,bool down,float v);
-MV_IMPORT ImGuiContext* igCreateContext(ImFontAtlas* shared_font_atlas);
-struct ImGuiWindow;
-MV_IMPORT ImGuiWindow* igGetCurrentWindow();
-MV_IMPORT void igPushFont(ImFont* font);
-MV_IMPORT void igStyleColorsDark(ImGuiStyle* dst);
-MV_IMPORT ImGuiStyle* igGetStyle();
-MV_IMPORT void igDestroyContext(ImGuiContext* ctx);
-MV_IMPORT void igSetCurrentContext(ImGuiContext* ctx);
-MV_IMPORT void igNewFrame();
-MV_IMPORT void igRender();
-MV_IMPORT void igShutdown();
-MV_IMPORT void igSaveIniSettingsToDisk(const char* ini_filename);
-MV_IMPORT void igDockContextShutdown(ImGuiContext* ctx);
-enum ImGuiContextHookType;
-MV_IMPORT void igCallContextHooks(ImGuiContext* context, ImGuiContextHookType type);
-struct ImGuiKeyRoutingTable;
-struct ImGuiInputTextState;
-struct ImGuiInputTextDeactivatedState;
-MV_IMPORT void ImGuiKeyRoutingTable_Clear(ImGuiKeyRoutingTable* self);
-MV_IMPORT void ImGuiInputTextState_ClearFreeMemory(ImGuiInputTextState* self);
-MV_IMPORT void ImGuiInputTextDeactivatedState_ClearFreeMemory(ImGuiInputTextDeactivatedState* self);
-MV_IMPORT bool igImFileClose(FILE* file);
-MV_IMPORT bool igBeginTable(const char* str_id, int column, ImGuiTableFlags flags, const ImVec2 outer_size, float inner_width);
-MV_IMPORT void igSetScrollFromPosY_WindowPtr(ImGuiWindow* window, float local_y, float center_y_ratio);
-MV_IMPORT ImDrawData* igGetDrawData();
-MV_IMPORT void igUpdatePlatformWindows();
-MV_IMPORT void igRenderPlatformWindowsDefault(void* platform_render_arg,void* renderer_render_arg);
 
 #endif // #ifndef IMGUI_DISABLE

@@ -16,6 +16,14 @@ namespace Stage.Core
             W = scalar;
         }
 
+        public Vector4(Vector3 xyz, float w)
+        {
+            X = xyz.X;
+            Y = xyz.Y;
+            Z = xyz.Z;
+            W = w;
+        }
+
         public Vector4(float x, float y, float z, float w)
         {
             X = x;

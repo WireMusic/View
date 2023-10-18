@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿global using vec2 = Stage.Core.Vector2;
+
+using System;
 
 namespace Stage.Core
 {
@@ -44,6 +42,11 @@ namespace Stage.Core
             return new Vector2(a.X + b.X, a.Y + b.Y);
         }
 
+        public static Vector2 operator-(Vector2 a, Vector2 b)
+        {
+            return new Vector2(a.X - b.X, a.Y - b.Y);
+        }
+
         public static Vector2 operator+(Vector2 a, float b)
         {
             return new Vector2(a.X + b, a.Y + b);
@@ -57,6 +60,14 @@ namespace Stage.Core
         public static Vector2 operator*(Vector2 vector, float scalar)
         {
             return new Vector2(vector.X * scalar, vector.Y * scalar);
+        }
+
+        public static Vector2 operator%(Vector2 a, Vector2 b)
+        {
+            if (b.X == 0 || b.Y == 0)
+                return new Vector2(0.0f);
+
+            return new Vector2(a.X % b.X, a.Y % b.Y);
         }
 
         public static bool operator==(Vector2 a, Vector2 b)

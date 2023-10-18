@@ -1,13 +1,14 @@
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 using Stage.Core;
 using Stage.ImGui;
 using Stage.UIModule;
-using static Stage.Renderer.GLConstants;
+using static Stage.Rendering.GLConstants;
 
-namespace Stage.Renderer
+namespace Stage.Rendering
 {
     public struct WindowProperties
     {
@@ -84,6 +85,7 @@ namespace Stage.Renderer
             {
                 Init();
                 _glfw.Init();
+                _glfw.SetErrorCallback(&GLFWErrorCallback);
             }
 
             if (props.Maximised)
@@ -101,10 +103,10 @@ namespace Stage.Renderer
                 _glfw.WindowHint(0x00020003, 0);
             }
 
-            _glfw.WindowHint(0x00022002, 3);
-            _glfw.WindowHint(0x00022003, 3);
-            _glfw.WindowHint(0x00022008, 0x00032001);
-            _glfw.WindowHint(0x00022006, 1);
+            //_glfw.WindowHint(0x00022002, 3);
+            //_glfw.WindowHint(0x00022003, 3);
+            //_glfw.WindowHint(0x00022008, 0x00032001);
+            //_glfw.WindowHint(0x00022006, 1);
 
             nint share = secondaryWindow ? Application.Instance.Window.Handle : nint.Zero;
 
@@ -164,7 +166,6 @@ namespace Stage.Renderer
             _glfw.SwapInterval = (delegate* unmanaged[Cdecl]<int, void>)_glfw.Lib.Load("glfwSwapInterval");
             _glfw.SetClipboardString = (delegate* unmanaged[Cdecl]<nint, string, void>)_glfw.Lib.Load("glfwSetClipboardString");
             _glfw.GetClipboardString = (delegate* unmanaged[Cdecl]<nint, string>)_glfw.Lib.Load("glfwGetClipboardString");
-            _glfw.SetErrorCallback = (delegate* unmanaged[Cdecl]<delegate* unmanaged[Cdecl]<int, string, void>, delegate* unmanaged[Cdecl]<int, string, void>>)_glfw.Lib.Load("glfwSetErrorCallback");
             _glfw.CreateStandardCursor = (delegate* unmanaged[Cdecl]<int, nint>)_glfw.Lib.Load("glfwCreateStandardCursor");
             _glfw.GetError = (delegate* unmanaged[Cdecl]<nint, int>)_glfw.Lib.Load("glfwGetError");
             _glfw.SetWindowFocusCallback = (delegate* unmanaged[Cdecl]<nint, nint, nint>)_glfw.Lib.Load("glfwSetWindowFocusCallback");
@@ -182,13 +183,8 @@ namespace Stage.Renderer
             _glfw.WindowHint = (delegate* unmanaged[Cdecl]<int, int, void>)_glfw.Lib.Load("glfwWindowHint");
             _glfw.SetWindowPos = (delegate* unmanaged[Cdecl]<nint, int, int, void>)_glfw.Lib.Load("glfwSetWindowPos");
             _glfw.GetWindowSize = (delegate* unmanaged[Cdecl]<nint, out int, out int, void>)_glfw.Lib.Load("glfwGetWindowSize");
+            _glfw.SetErrorCallback = (delegate* unmanaged[Cdecl]<delegate* unmanaged[Cdecl]<int, byte*, void>, delegate* unmanaged[Cdecl]<int, byte*, void>>)_glfw.Lib.Load("glfwSetErrorCallback");
 
-            _glad = new Glad();
-            if (Core.Application.Instance.Specification.Glad == null)
-                _glfw.Lib = new Library("glad.dll");
-            else
-                _glad.Lib = new Library("glad", Core.Application.Instance.Specification.Glad);
-            _glad.LoadGLLoader = (delegate* unmanaged[Cdecl]<delegate* unmanaged[Cdecl]<char*, int>, int>)_glad.Lib.Load("gladLoadGLLoader");
             _imgui = new Core.ImGui();
             if (Core.Application.Instance.Specification.cimgui == null)
                 _imgui.Lib = new Library("cimgui.dll");
@@ -196,37 +192,40 @@ namespace Stage.Renderer
                 _imgui.Lib = new Library("cimgui", Core.Application.Instance.Specification.cimgui);
             _imgui.Begin = (delegate* unmanaged[Cdecl]<string, bool*, int, bool>)_imgui.Lib.Load("igBegin");
             _imgui.End = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igEnd");
-            _imgui.ImageButton = (delegate* unmanaged[Cdecl]<string, nint, Vector2, Vector2, Vector2, Vector4, Vector4, bool>)_imgui.Lib.Load("igImageButton");
+            _imgui.ImageButton = (delegate* unmanaged[Cdecl]<string, nint, Vector2*, Vector2*, Vector2*, Vector4*, Vector4*, bool>)_imgui.Lib.Load("igImageButton");
             _imgui.Text = (delegate* unmanaged[Cdecl]<string, void>)_imgui.Lib.Load("igText");
             _imgui.PushStyleVar_Float = (delegate* unmanaged[Cdecl]<int, float, void>)_imgui.Lib.Load("igPushStyleVar_Float");
-            _imgui.PushStyleVar_Vec2 = (delegate* unmanaged[Cdecl]<int, Vector2, void>)_imgui.Lib.Load("igPushStyleVar_Vec2");
+            _imgui.PushStyleVar_Vec2 = (delegate* unmanaged[Cdecl]<int, Vector2*, void>)_imgui.Lib.Load("igPushStyleVar_Vec2");
             _imgui.PopStyleVar = (delegate* unmanaged[Cdecl]<int, void>)_imgui.Lib.Load("igPopStyleVar");
             _imgui.GetMainViewport = (delegate* unmanaged[Cdecl]<nint>)_imgui.Lib.Load("igGetMainViewport");
-            _imgui.SetNextWindowPos = (delegate* unmanaged[Cdecl]<Vector2, int, Vector2, void>)_imgui.Lib.Load("igSetNextWindowPos");
-            _imgui.SetNextWindowSize = (delegate* unmanaged[Cdecl]<Vector2, int, void>)_imgui.Lib.Load("igSetNextWindowSize");
+            _imgui.SetNextWindowPos = (delegate* unmanaged[Cdecl]<Vector2*, int, Vector2*, void>)_imgui.Lib.Load("igSetNextWindowPos");
+            _imgui.SetNextWindowSize = (delegate* unmanaged[Cdecl]<Vector2*, int, void>)_imgui.Lib.Load("igSetNextWindowSize");
             _imgui.SetNextWindowViewport = (delegate* unmanaged[Cdecl]<uint, void>)_imgui.Lib.Load("igSetNextWindowViewport");
             _imgui.GetID = (delegate* unmanaged[Cdecl]<string, uint>)_imgui.Lib.Load("igGetID_Str");
-            _imgui.DockSpace = (delegate* unmanaged[Cdecl]<uint, Vector2, int, nint, uint>)_imgui.Lib.Load("igDockSpace");
+            _imgui.DockSpace = (delegate* unmanaged[Cdecl]<uint, Vector2*, int, nint, uint>)_imgui.Lib.Load("igDockSpace");
             _imgui.BeginMenuBar = (delegate* unmanaged[Cdecl]<bool>)_imgui.Lib.Load("igBeginMenuBar");
             _imgui.EndMenuBar = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igEndMenuBar");
             _imgui.BeginMenu = (delegate* unmanaged[Cdecl]<string, bool, bool>)_imgui.Lib.Load("igBeginMenu");
             _imgui.EndMenu = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igEndMenu");
             _imgui.MenuItem_Bool = (delegate* unmanaged[Cdecl]<string, string, bool, bool, bool>)_imgui.Lib.Load("igMenuItem_Bool");
             _imgui.SameLine = (delegate* unmanaged[Cdecl]<float, float, void>)_imgui.Lib.Load("igSameLine");
-            _imgui.Button = (delegate* unmanaged[Cdecl]<string, Vector2, bool>)_imgui.Lib.Load("igButton");
-            _imgui.ButtonEx = (delegate* unmanaged[Cdecl]<string, Vector2, int, bool>)_imgui.Lib.Load("igButtonEx");
+            _imgui.Button = (delegate* unmanaged[Cdecl]<string, Vector2*, bool>)_imgui.Lib.Load("igButton");
+            _imgui.ButtonEx = (delegate* unmanaged[Cdecl]<string, Vector2*, int, bool>)_imgui.Lib.Load("igButtonEx");
+            _imgui.InvisibleButton = (delegate* unmanaged[Cdecl]<string, Vector2*, int, bool>)_imgui.Lib.Load("igInvisibleButton");
+            _imgui.IsItemHovered = (delegate* unmanaged[Cdecl]<int, bool>)_imgui.Lib.Load("igIsItemHovered");
+            _imgui.IsItemActive = (delegate* unmanaged[Cdecl]<bool>)_imgui.Lib.Load("igIsItemActive");
             _imgui.Checkbox = (delegate* unmanaged[Cdecl]<string, bool*, bool>)_imgui.Lib.Load("igCheckbox");
             _imgui.PushStyleColor_U32 = (delegate* unmanaged[Cdecl]<int, uint, void>)_imgui.Lib.Load("igPushStyleColor_U32");
-            _imgui.PushStyleColor_Vec4 = (delegate* unmanaged[Cdecl]<int, Vector4, void>)_imgui.Lib.Load("igPushStyleColor_Vec4");
+            _imgui.PushStyleColor_Vec4 = (delegate* unmanaged[Cdecl]<int, Vector4*, void>)_imgui.Lib.Load("igPushStyleColor_Vec4");
             _imgui.PopStyleColor = (delegate* unmanaged[Cdecl]<int, void>)_imgui.Lib.Load("igPopStyleColor");
-            //_imgui.BeginTable = (delegate* unmanaged[Cdecl]<string, int, int, Vector2*, float, bool>)_imgui.Lib.Load("igBeginTable");
+            _imgui.BeginTable = (delegate* unmanaged[Cdecl]<string, int, int, Vector2*, float, bool>)_imgui.Lib.Load("igBeginTable");
             _imgui.CalcTextSize = (delegate* unmanaged[Cdecl]<out Vector2, string, nint, bool, float, void>)_imgui.Lib.Load("igCalcTextSize");
             _imgui.EndTable = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igEndTable");
             _imgui.TableSetupColumn = (delegate* unmanaged[Cdecl]<string, int, float, uint, void>)_imgui.Lib.Load("igTableSetupColumn");
             _imgui.GetWindowSize = (delegate* unmanaged[Cdecl]<out Vector2, void>)_imgui.Lib.Load("igGetWindowSize");
             _imgui.TableNextRow = (delegate* unmanaged[Cdecl]<int, float, void>)_imgui.Lib.Load("igTableNextRow");
             _imgui.TableSetBgColor = (delegate* unmanaged[Cdecl]<int, uint, int, void>)_imgui.Lib.Load("igTableSetBgColor");
-            _imgui.GetColorU32_Vec4 = (delegate* unmanaged[Cdecl]<Vector4, uint>)_imgui.Lib.Load("igGetColorU32_Vec4");
+            _imgui.GetColorU32_Vec4 = (delegate* unmanaged[Cdecl]<Vector4*, uint>)_imgui.Lib.Load("igGetColorU32_Vec4");
             _imgui.TableSetColumnIndex = (delegate* unmanaged[Cdecl]<int, bool>)_imgui.Lib.Load("igTableSetColumnIndex");
             _imgui.GetScrollY = (delegate* unmanaged[Cdecl]<float>)_imgui.Lib.Load("igGetScrollY");
             _imgui.GetScrollMaxY = (delegate* unmanaged[Cdecl]<float>)_imgui.Lib.Load("igGetScrollMaxY");
@@ -242,10 +241,16 @@ namespace Stage.Renderer
 			_imgui.Columns = (delegate* unmanaged[Cdecl]<int, string, bool, void>)_imgui.Lib.Load("igColumns");
 			_imgui.SetColumnWidth = (delegate* unmanaged[Cdecl]<int, float, void>)_imgui.Lib.Load("igSetColumnWidth");
 			_imgui.NextColumn = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igNextColumn");
+            _imgui.IsMouseClicked = (delegate* unmanaged[Cdecl]<int, bool, bool>)_imgui.Lib.Load("igIsMouseClicked_Bool");
+            _imgui.IsMouseDown = (delegate* unmanaged[Cdecl]<int, bool>)_imgui.Lib.Load("igIsMouseDown_Nil");
+            _imgui.IsMouseDragging = (delegate* unmanaged[Cdecl]<int, float, bool>)_imgui.Lib.Load("igIsMouseDragging");
+            _imgui.GetMouseDragDelta = (delegate* unmanaged[Cdecl]<out Vector2, int, float, void>)_imgui.Lib.Load("igGetMouseDragDelta");
 			_imgui.InputText = (delegate* unmanaged[Cdecl]<string, byte*, ulong, int, InputTextCallback, void*, bool>)_imgui.Lib.Load("igInputText");
 			_imgui.PushItemWidth = (delegate* unmanaged[Cdecl]<float, void>)_imgui.Lib.Load("igPushItemWidth");
 			_imgui.PopItemWidth = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igPopItemWidth");
 			_imgui.ShowDemoWindow = (delegate* unmanaged[Cdecl]<bool*, void>)_imgui.Lib.Load("igShowDemoWindow");
+            _imgui.OpenPopupOnItemClick = (delegate* unmanaged[Cdecl]<string, int, void>)_imgui.Lib.Load("igOpenPopupOnItemClick");
+            _imgui.BeginPopup = (delegate* unmanaged[Cdecl]<string, int, bool>)_imgui.Lib.Load("igBeginPopup");
 			_imgui.InputTextWithHint = (delegate* unmanaged[Cdecl]<string, string, byte*, ulong, int, InputTextCallback, void*, bool>)_imgui.Lib.Load("igInputTextWithHint");
 			_imgui.PopFont = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igPopFont");
 			_imgui.DragFloat = (delegate* unmanaged[Cdecl]<string, float*, float, float, float, string, int, bool>)_imgui.Lib.Load("igDragFloat");
@@ -254,6 +259,18 @@ namespace Stage.Renderer
 			_imgui.PushID_Str = (delegate* unmanaged[Cdecl]<string, void>)_imgui.Lib.Load("igPushID_Str");
 			_imgui.PopID = (delegate* unmanaged[Cdecl]<void>)_imgui.Lib.Load("igPopID");
             _imgui.GetCursorPos = (delegate* unmanaged[Cdecl]<out Vector2, void>)_imgui.Lib.Load("igGetCursorPos");
+            _imgui.ImDrawList_PushClipRect = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, bool, void>)_imgui.Lib.Load("ImDrawList_PushClipRect");
+            _imgui.ImDrawList_PushClipRectFullScreen = (delegate* unmanaged[Cdecl]<nint, void>)_imgui.Lib.Load("ImDrawList_PushClipRectFullScreen");
+            _imgui.ImDrawList_PopClipRect = (delegate* unmanaged[Cdecl]<nint, void>)_imgui.Lib.Load("ImDrawList_PopClipRect");
+            _imgui.ImDrawList_PushTextureID = (delegate* unmanaged[Cdecl]<nint, nint, void>)_imgui.Lib.Load("ImDrawList_PushTextureID");
+            _imgui.ImDrawList_PopTextureID = (delegate* unmanaged[Cdecl]<nint, void>)_imgui.Lib.Load("ImDrawList_PopTextureID");
+            _imgui.ImDrawList_GetClipRectMin = (delegate* unmanaged[Cdecl]<out Vector2, nint, void>)_imgui.Lib.Load("ImDrawList_GetClipRectMin");
+            _imgui.ImDrawList_GetClipRectMax = (delegate* unmanaged[Cdecl]<out Vector2, nint, void>)_imgui.Lib.Load("ImDrawList_GetClipRectMax");
+            _imgui.ImDrawList_AddLine = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, void>)_imgui.Lib.Load("ImDrawList_AddLine");
+            _imgui.ImDrawList_AddRect = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, int, float, void>)_imgui.Lib.Load("ImDrawList_AddRect");
+            _imgui.ImDrawList_AddRectFilled = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, int, void>)_imgui.Lib.Load("ImDrawList_AddRectFilled");
+            _imgui.ImDrawList_AddRectFilledMultiColor = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, uint, uint, uint, void>)_imgui.Lib.Load("ImDrawList_AddRectFilledMultiColor");
+            _imgui.ImDrawList_AddQuad = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, Vector2*, Vector2*, uint, void>)_imgui.Lib.Load("ImDrawList_AddQuad");
 
             // imgui end (for code gen)
 
@@ -284,45 +301,37 @@ namespace Stage.Renderer
             _helper.ImGuiForceInstallCallbacks = (delegate* unmanaged[Cdecl]<nint, void>)_helper.Lib.Load("ImGui_ImplGlfw_InstallCallbacks_Force");
             _helper.ImGuiRestoreCallbacks = (delegate* unmanaged[Cdecl]<nint, void>)_helper.Lib.Load("ImGui_ImplGlfw_RestoreCallbacks");
 
-            _helper.ImDrawVert_GetPos = (delegate* unmanaged[Cdecl]<nint, out Vector2, void>)_helper.Lib.Load("ImDrawVert_Getpos");
-            _helper.ImDrawVert_SetPos = (delegate* unmanaged[Cdecl]<nint, ref Vector2, void>)_helper.Lib.Load("ImDrawVert_Setpos");
-            _helper.ImDrawVert_GetUv = (delegate* unmanaged[Cdecl]<nint, out Vector2, void>)_helper.Lib.Load("ImDrawVert_Getuv");
-            _helper.ImDrawVert_SetUv = (delegate* unmanaged[Cdecl]<nint, ref Vector2, void>)_helper.Lib.Load("ImDrawVert_Setuv");
-            _helper.ImDrawVert_GetCol = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawVert_Getcol");
-            _helper.ImDrawVert_SetCol = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawVert_Setcol");
-
-            _helper.ImDrawCmd_GetClipRect = (delegate* unmanaged[Cdecl]<nint, out Vector4, void>)_helper.Lib.Load("ImDrawCmd_GetClipRect");
-            _helper.ImDrawCmd_SetClipRect = (delegate* unmanaged[Cdecl]<nint, ref Vector4, void>)_helper.Lib.Load("ImDrawCmd_SetClipRect");
-            _helper.ImDrawCmd_GetTextureID = (delegate* unmanaged[Cdecl]<nint, out nint, void>)_helper.Lib.Load("ImDrawCmd_GetTextureId");
-            _helper.ImDrawCmd_SetTextureID = (delegate* unmanaged[Cdecl]<nint, nint, void>)_helper.Lib.Load("ImDrawCmd_SetTextureId");
-            _helper.ImDrawCmd_GetVtxOffset = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetVtxOffset");
-            _helper.ImDrawCmd_SetVtxOffset = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetVtxOffset");
-            _helper.ImDrawCmd_GetIdxOffset = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetIdxOffset");
-            _helper.ImDrawCmd_SetIdxOffset = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetIdxOffset");
-            _helper.ImDrawCmd_GetElemCount = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetElemCount");
-            _helper.ImDrawCmd_SetElemCount = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetElemCount");
-            _helper.ImDrawCmd_GetUserCallback = (delegate* unmanaged[Cdecl]<nint, out delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void>)_helper.Lib.Load("ImDrawCmd_GetUserCallback");
-            _helper.ImDrawCmd_SetUserCallback = (delegate* unmanaged[Cdecl]<nint, delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void>)_helper.Lib.Load("ImDrawCmd_SetUserCallback");
-            _helper.ImDrawCmd_GetUserCallbackData = (delegate* unmanaged[Cdecl]<nint, void*>)_helper.Lib.Load("ImDrawCmd_GetUserCallbackData");
-            _helper.ImDrawCmd_SetUserCallbackData = (delegate* unmanaged[Cdecl]<nint, void*, void>)_helper.Lib.Load("ImDrawCmd_SetUserCallbackData");
-
             _helper.DrawList_GetCmdBuffer = (delegate* unmanaged[Cdecl]<nint, out int, void**>)_helper.Lib.Load("DrawList_GetCmdBuffer");
             _helper.DrawList_SetCmdBuffer = (delegate* unmanaged[Cdecl]<nint, void**, int, void>)_helper.Lib.Load("DrawList_SetCmdBuffer");
 
-            _imgui.ImDrawList_PushClipRect = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, bool, void>)_helper.Lib.Load("DrawList_PushClipRect");
-            _imgui.ImDrawList_PushClipRectFullScreen = (delegate* unmanaged[Cdecl]<nint, void>)_helper.Lib.Load("DrawList_PushClipRectFullScreen");
-            _imgui.ImDrawList_PopClipRect = (delegate* unmanaged[Cdecl]<nint, void>)_helper.Lib.Load("DrawList_PopClipRect");
-            _imgui.ImDrawList_PushTextureID = (delegate* unmanaged[Cdecl]<nint, nint, void>)_helper.Lib.Load("DrawList_PushTextureID");
-            _imgui.ImDrawList_PopTextureID = (delegate* unmanaged[Cdecl]<nint, void>)_helper.Lib.Load("DrawList_PopTextureID");
-            _imgui.ImDrawList_GetClipRectMin = (delegate* unmanaged[Cdecl]<out Vector2, nint, void>)_helper.Lib.Load("DrawList_GetClipRectMin");
-            _imgui.ImDrawList_GetClipRectMax = (delegate* unmanaged[Cdecl]<out Vector2, nint, void>)_helper.Lib.Load("DrawList_GetClipRectMax");
-            _imgui.ImDrawList_AddLine = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, void>)_helper.Lib.Load("DrawList_AddLine");
-            _imgui.ImDrawList_AddRect = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, int, float, void>)_helper.Lib.Load("DrawList_AddRect");
-            _imgui.ImDrawList_AddRectFilled = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, int, void>)_helper.Lib.Load("DrawList_AddRectFilled");
-            _imgui.ImDrawList_AddRectFilledMultiColor = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, uint, uint, uint, void>)_helper.Lib.Load("DrawList_AddRectFilledMultiColor");
-            _imgui.ImDrawList_AddQuad = (delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, Vector2*, Vector2*, uint, void>)_helper.Lib.Load("DrawList_AddQuad");
+            _helper.ImGuiIO_GetMousePos = (delegate* unmanaged[Cdecl]<out Vector2, void>)_helper.Lib.Load("ImGuiIO_GetMousePos");
+            _helper.ImGuiIO_GetMouseDelta = (delegate* unmanaged[Cdecl]<out Vector2, void>)_helper.Lib.Load("ImGuiIO_GetMouseDelta");
 
-            _imgui.BeginTable = (delegate* unmanaged[Cdecl]<string, int, int, Vector2*, float, bool>)_helper.Lib.Load("BeginTable");
+            _helper.ImGuiStyle_GetAlpha = (delegate* unmanaged[Cdecl]<float>)_helper.Lib.Load("ImGuiStyle_GetAlpha");
+
+            _imgui.ImDrawVert_GetPos = (delegate* unmanaged[Cdecl]<nint, out Vector2, void>)_helper.Lib.Load("ImDrawVert_Getpos");
+            _imgui.ImDrawVert_SetPos = (delegate* unmanaged[Cdecl]<nint, ref Vector2, void>)_helper.Lib.Load("ImDrawVert_Setpos");
+            _imgui.ImDrawVert_GetUv = (delegate* unmanaged[Cdecl]<nint, out Vector2, void>)_helper.Lib.Load("ImDrawVert_Getuv");
+            _imgui.ImDrawVert_SetUv = (delegate* unmanaged[Cdecl]<nint, ref Vector2, void>)_helper.Lib.Load("ImDrawVert_Setuv");
+            _imgui.ImDrawVert_GetCol = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawVert_Getcol");
+            _imgui.ImDrawVert_SetCol = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawVert_Setcol");
+            _imgui.ImDrawCmd_GetClipRect = (delegate* unmanaged[Cdecl]<nint, out Vector4, void>)_helper.Lib.Load("ImDrawCmd_GetClipRect");
+            _imgui.ImDrawCmd_SetClipRect = (delegate* unmanaged[Cdecl]<nint, ref Vector4, void>)_helper.Lib.Load("ImDrawCmd_SetClipRect");
+            _imgui.ImDrawCmd_GetTextureID = (delegate* unmanaged[Cdecl]<nint, out nint, void>)_helper.Lib.Load("ImDrawCmd_GetTextureId");
+            _imgui.ImDrawCmd_SetTextureID = (delegate* unmanaged[Cdecl]<nint, nint, void>)_helper.Lib.Load("ImDrawCmd_SetTextureId");
+            _imgui.ImDrawCmd_GetVtxOffset = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetVtxOffset");
+            _imgui.ImDrawCmd_SetVtxOffset = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetVtxOffset");
+            _imgui.ImDrawCmd_GetIdxOffset = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetIdxOffset");
+            _imgui.ImDrawCmd_SetIdxOffset = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetIdxOffset");
+            _imgui.ImDrawCmd_GetElemCount = (delegate* unmanaged[Cdecl]<nint, out uint, void>)_helper.Lib.Load("ImDrawCmd_GetElemCount");
+            _imgui.ImDrawCmd_SetElemCount = (delegate* unmanaged[Cdecl]<nint, uint, void>)_helper.Lib.Load("ImDrawCmd_SetElemCount");
+            _imgui.ImDrawCmd_GetUserCallback = (delegate* unmanaged[Cdecl]<nint, out delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void>)_helper.Lib.Load("ImDrawCmd_GetUserCallback");
+            _imgui.ImDrawCmd_SetUserCallback = (delegate* unmanaged[Cdecl]<nint, delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void>)_helper.Lib.Load("ImDrawCmd_SetUserCallback");
+            _imgui.ImDrawCmd_GetUserCallbackData = (delegate* unmanaged[Cdecl]<nint, void*>)_helper.Lib.Load("ImDrawCmd_GetUserCallbackData");
+            _imgui.ImDrawCmd_SetUserCallbackData = (delegate* unmanaged[Cdecl]<nint, void*, void>)_helper.Lib.Load("ImDrawCmd_SetUserCallbackData");
+        
+            _imgui.ImDrawList_AddText_Vec2 = (delegate* unmanaged[Cdecl]<nint, Vector2*, uint, string, void*, void>)_helper.Lib.Load("DrawList_AddText_Vec2");
+            _imgui.ImDrawList_AddText_Font = (delegate* unmanaged[Cdecl]<nint, bool, float, byte*, int, Vector2*, uint, string, void*, float, Vector4*, void>)_helper.Lib.Load("DrawList_AddText_Font");
         }
 
         internal static unsafe void GLInit()
@@ -393,14 +402,14 @@ namespace Stage.Renderer
 
             if (m_FrozeOtherWindows)
             {
-                Core.Application.Instance.AddToMainThreadQueue(() => { s_Frozen = false; });
+                Application.Instance.AddToMainThreadQueue(() => { s_Frozen = false; });
             }
 
             if (m_SecondaryWindow)
             {
-                ImGuiImpl.DrawingWindow = Core.Application.Instance.Window.Handle;
-                _helper.ImGuiSetCurrentWindow(Core.Application.Instance.Window.Handle);
-                Core.Application.Instance.Window.m_Context.MakeCurrent();
+                ImGuiImpl.DrawingWindow = Application.Instance.Window.Handle;
+                _helper.ImGuiSetCurrentWindow(Application.Instance.Window.Handle);
+                Application.Instance.Window.m_Context.MakeCurrent();
 
                 _helper.ImGuiRestoreCallbacks(Core.Application.Instance.Window.Handle);
                 _helper.ImGuiForceInstallCallbacks(Core.Application.Instance.Window.Handle);
@@ -413,7 +422,6 @@ namespace Stage.Renderer
                 _glfw.Terminate();
 
                 _glfw.Lib.Dispose();
-                _glad.Lib.Dispose();
                 _imgui.Lib.Dispose();
                 _helper.Lib.Dispose();
 
@@ -446,39 +454,14 @@ namespace Stage.Renderer
             _glfw.SwapBuffers(second.Handle);
             _glfw.PollEvents();
         }
+
+        [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
+        private static unsafe void GLFWErrorCallback(int code, byte* desc)
+        {
+            string description = Encoding.UTF8.GetString(desc, Utils.StringHelper.StrLen(desc));
+
+            Console.Error.WriteLine($"[GLFW] ({code}) {description}");
+        }
     }
  
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

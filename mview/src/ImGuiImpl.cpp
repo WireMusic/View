@@ -1,11 +1,14 @@
-#include "imgui.h"
-#include "imgui_internal.h"
+//#include "imgui.h"
+//#include "imgui_internal.h"
 #include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+#include "imgui_impl_opengl2.h"
+
+#include "cimgui.h"
 
 #include "mview.h"
 #include "GLFW/glfw3.h"
 
+#include <iostream>
 #include <vector>
 #include <map>
 
@@ -18,7 +21,7 @@ static bool LoadNewSizes = false;
 MV_EXPORT void ImGuiInit(GLFWwindow* window, void* fontData, int dataSize, void* boldFontData, int boldFontDataSize, float fontSize, float* defaultFontSizes, int dfsSize, float* boldFontSizes, int bfsSize, bool loadFontSizes)
 {
     igCreateContext(nullptr);
-    ImGuiIO& io = igGetIO();
+    ImGuiIO& io = *igGetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
@@ -63,16 +66,16 @@ MV_EXPORT void ImGuiInit(GLFWwindow* window, void* fontData, int dataSize, void*
     SetStyle();
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    ImGui_ImplOpenGL2_Init();
 }
 
 MV_EXPORT void ImGuiShutdown()
 {
-    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplOpenGL2_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    //igDestroyContext(igGetCurrentContext());
+    igDestroyContext(igGetCurrentContext());
 
-    ImGuiContext* ctx = igGetCurrentContext();
+    /*ImGuiContext* ctx = igGetCurrentContext();
     igSetCurrentContext(ctx);
     //igShutdown();
 
@@ -83,7 +86,10 @@ MV_EXPORT void ImGuiShutdown()
         //IM_DELETE(g.IO.Fonts);
     }
     g.IO.Fonts = NULL;
-    g.DrawListSharedData.TempBuffer.clear();
+    
+    g.DrawListSharedData.TempBuffer.Capacity = 0;
+    g.DrawListSharedData.TempBuffer.Data = nullptr;
+    g.DrawListSharedData.TempBuffer.Size = 0;
 
     if (!g.Initialized)
         return;
@@ -98,11 +104,17 @@ MV_EXPORT void ImGuiShutdown()
     igCallContextHooks(&g, ImGuiContextHookType_Shutdown);
 
     //g.Windows.clear_delete();
-    g.WindowsFocusOrder.clear();
-    g.WindowsTempSortBuffer.clear();
+    g.WindowsFocusOrder.Capacity = 0;
+    g.WindowsFocusOrder.Data = nullptr;
+    g.WindowsFocusOrder.Size = 0;
+    g.WindowsTempSortBuffer.Capacity = 0;
+    g.WindowsTempSortBuffer.Data = nullptr;
+    g.WindowsTempSortBuffer.Size = 0;
     g.CurrentWindow = NULL;
-    g.CurrentWindowStack.clear();
-    g.WindowsById.Clear();
+    g.CurrentWindowStack.Capacity = 0;
+    g.CurrentWindowStack.Data = 0;
+    g.CurrentWindowStack.Size = 0;
+    ImGuiStorage_Clear(&g.WindowsById);
     g.NavWindow = NULL;
     g.HoveredWindow = g.HoveredWindowUnderMovingWindow = NULL;
     g.ActiveIdWindow = g.ActiveIdPreviousFrameWindow = NULL;
@@ -159,6 +171,67 @@ MV_EXPORT void ImGuiShutdown()
     if (ctx)
     {
         igMemFree(ctx);
+    }*/
+}
+
+MV_EXPORT void ImGuiIO_GetMousePos(ImVec2* outValue)
+{
+    *outValue = igGetIO()->MousePos;
+}
+
+MV_EXPORT void ImGuiIO_GetMouseDelta(ImVec2* outValue)
+{
+    *outValue = igGetIO()->MouseDelta;
+}
+
+MV_EXPORT float ImGuiStyle_GetAlpha()
+{
+    return igGetCurrentContext()->Style.Alpha;
+}
+
+MV_EXPORT void DrawList_AddText_Vec2(ImDrawList* ptr, ImVec2* pos, ImU32 col, const char* text_begin, const char* text_end)
+{
+    ImDrawList_AddText_Vec2(ptr, pos, col, text_begin, NULL);
+}
+
+MV_EXPORT void DrawList_AddText_Font(ImDrawList* ptr, bool bold, float fontSize, void* fontData, int dataSize, ImVec2* pos, ImU32 col, const char* text_begin, const char* text_end, float wrap_width, ImVec4* cpu_fine_clip_rect)
+{
+    bool mapContainsSize = bold ? BoldFonts.count(fontSize) : DefaultFonts.count(fontSize);
+    ImFont* font = nullptr;
+
+    if (LoadNewSizes)
+    {
+        if (mapContainsSize)
+        {
+            font = bold ? BoldFonts.at(fontSize) : DefaultFonts.at(fontSize);
+        }
+        else
+        {
+            if (bold)
+            {
+                font = BoldFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO()->Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
+            }
+            else
+            {
+                font = DefaultFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO()->Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
+            }
+        }
+    }
+    else
+    {
+        if (mapContainsSize)
+        {
+            font = bold ? BoldFonts.at(fontSize) : DefaultFonts.at(fontSize);
+        }
+    }
+
+    if (font)
+    {
+        ImDrawList_AddText_FontPtr(ptr, font, fontSize, pos, col, text_begin, text_end, wrap_width, const_cast<const ImVec4**>(&cpu_fine_clip_rect));
+    }
+    else
+    {
+        DrawList_AddText_Vec2(ptr, pos, col, text_begin, text_end);
     }
 }
 
@@ -177,11 +250,11 @@ MV_EXPORT bool PushFont(bool bold, float fontSize, void* fontData, int dataSize)
         {
             if (bold)
             {
-                BoldFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO().Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
+                BoldFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO()->Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
             }
             else
             {
-                DefaultFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO().Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
+                DefaultFonts[fontSize] = ImFontAtlas_AddFontFromMemoryTTF(igGetIO()->Fonts, fontData, dataSize, fontSize, nullptr, nullptr);
             }
 
             return true;
@@ -202,9 +275,9 @@ MV_EXPORT void** DrawList_GetCmdBuffer(ImDrawList* drawList, int* outSize)
 {
     std::vector<void*> ptrs;
     
-    for (auto ptr : drawList->CmdBuffer)
+    for (int i = 0; i < drawList->CmdBuffer.Size; i++)
     {
-        ptrs.push_back(&ptr);
+        ptrs.push_back(&drawList->CmdBuffer.Data[i]);
     }
 
     *outSize = (int)ptrs.size();
@@ -214,7 +287,7 @@ MV_EXPORT void** DrawList_GetCmdBuffer(ImDrawList* drawList, int* outSize)
 
 MV_EXPORT void DrawList_SetCmdBuffer(ImDrawList* drawList, void** ptr, int size)
 {
-    ImVector<ImDrawCmd> vector;
+    ImVector_ImDrawCmd vector;
     vector.Data = (ImDrawCmd*)*ptr;
     vector.Size = size;
 
@@ -267,14 +340,14 @@ MV_EXPORT bool BeginTable(const char* id, int columns, ImGuiTableFlags flags, Im
     //std::cout << size->x << ", " << size->y << std::endl;
     //std::cout << inner << std::endl;
 
-    bool val = igBeginTable(id, columns, flags, *size, inner);
+    bool val = igBeginTable(id, columns, flags, size, inner);
     //std::cout << val << std::endl;
     return val;
 }
 
 MV_EXPORT void DrawList_PushClipRect(ImDrawList* drawList, ImVec2* min, ImVec2* max, bool intersect)
 {
-    ImDrawList_PushClipRect(drawList, *min, *max, intersect);
+    ImDrawList_PushClipRect(drawList, min, max, intersect);
 }
 
 MV_EXPORT void DrawList_PushClipRectFullScreen(ImDrawList* drawList)
@@ -309,28 +382,31 @@ MV_EXPORT void DrawList_GetClipRectMax(ImVec2* out, ImDrawList* self)
 
 MV_EXPORT void DrawList_AddLine(ImDrawList* self, ImVec2* p1, ImVec2* p2, ImU32 col, float thickness)
 {
-    ImDrawList_AddLine(self, *p1, *p2, col, thickness);
+    ImDrawList_AddLine(self, p1, p2, col, thickness);
 }
 
 MV_EXPORT void DrawList_AddRect(ImDrawList* self, ImVec2* min, ImVec2* max, ImU32 col, float rounding, ImDrawFlags flags, float thickness)
 {
-    ImDrawList_AddRect(self, *min, *max, col, rounding, flags, thickness);
+    ImDrawList_AddRect(self, min, max, col, rounding, flags, thickness);
 }
 
 MV_EXPORT void DrawList_AddRectFilled(ImDrawList* self, ImVec2* min, ImVec2* max, ImU32 col, float rounding, ImDrawFlags flags)
 {
-    ImDrawList_AddRectFilled(self, *min, *max, col, rounding, flags);
+    ImDrawList_AddRectFilled(self, min, max, col, rounding, flags);
 }
 
 MV_EXPORT void DrawList_AddRectFilledMultiColor(ImDrawList* self, ImVec2* min, ImVec2* max, ImU32 tl, ImU32 tr, ImU32 br, ImU32 bl)
 {
-    ImDrawList_AddRectFilledMultiColor(self, *min, *max, tl, tr, br, bl);
+    ImDrawList_AddRectFilledMultiColor(self, min, max, tl, tr, br, bl);
 }
 
 MV_EXPORT void DrawList_AddQuad(ImDrawList* self, ImVec2* p1, ImVec2* p2, ImVec2* p3, ImVec2* p4, ImU32 col, float thickness)
 {
-    ImDrawList_AddQuad(self, *p1, *p2, *p3, *p4, col, thickness);
+    ImDrawList_AddQuad(self, p1, p2, p3, p4, col, thickness);
 }
+
+template<typename T> static inline T ImMax(T lhs, T rhs) { return lhs >= rhs ? lhs : rhs; }
+template<typename T> static inline T ImLerp(T a, T b, float t) { return (T)(a + (b - a) * t); }
 
 MV_EXPORT void ScrollToBottom()
 {
@@ -359,20 +435,20 @@ MV_EXPORT void AlignText(float offset)
 
 MV_EXPORT void ImGuiBegin()
 {
-    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplOpenGL2_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     igNewFrame();
 }
 
 MV_EXPORT void ImGuiEnd(GLFWwindow* window)
 {
-    ImGuiIO& io = igGetIO();
+    ImGuiIO& io = *igGetIO();
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     io.DisplaySize = ImVec2{ (float)width, (float)height };
 
     igRender();
-    ImGui_ImplOpenGL3_RenderDrawData(igGetDrawData());
+    ImGui_ImplOpenGL2_RenderDrawData((ImDrawData*)igGetDrawData());
 
     if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
     {
@@ -410,7 +486,7 @@ MV_EXPORT float GetMinWinSizeX()
 
 MV_EXPORT ImVec2* IOGetDisplaySize()
 {
-    return &igGetIO().DisplaySize;
+    return &igGetIO()->DisplaySize;
 }
 
 static void SetDarkThemeColours();

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Stage.Renderer
+namespace Stage.Rendering
 {
     public class Texture
     {

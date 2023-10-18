@@ -5,7 +5,7 @@ namespace Stage.UIModule
 {
     public class Menubar
     {
-        private List<Menu> Menus;
+        public List<Menu> Menus;
 
         public Menubar()
         {
@@ -70,7 +70,7 @@ namespace Stage.UIModule
     {
         internal override string Name { get; set; }
 
-        internal List<MenuPart> Items;
+        public List<MenuPart> Items;
 
         public Menu(string name)
         {
@@ -122,7 +122,7 @@ namespace Stage.UIModule
         internal override string Name { get; set; }
         public string Shortcut { get; private set; }
 
-        private Action Callback = null;
+        public Action Callback = null;
 
         public MenuItem(string name, string shortcut = "")
         {

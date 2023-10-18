@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 using Stage.Utils;
 
-namespace Stage.Renderer
+namespace Stage.Rendering
 {
     internal class GraphicsContext
     {
@@ -26,12 +26,12 @@ namespace Stage.Renderer
 
                 //nint glfwGetProcAddress = Marshal.GetFunctionPointerForDelegate<GetProcAddress>(method.CreateDelegate<GetProcAddress>());
 
-                int status = _glad.LoadGLLoader((delegate* unmanaged[Cdecl]<char*, int>)glfwGetProcAddress);
+                /*int status = _glad.LoadGLLoader((delegate* unmanaged[Cdecl]<char*, int>)glfwGetProcAddress);
                 if (status != 1)
                 {
                     Console.Error.WriteLine("Could not initialise glad!");
                     return;
-                }
+                }*/
 
                 m_GladInit = true;
             }
@@ -51,12 +51,12 @@ namespace Stage.Renderer
             {
                 nint glfwGetProcAddress = Marshal.GetFunctionPointerForDelegate(Window.glfwGetProcAddress);
 
-                int status = _glad.LoadGLLoader((delegate* unmanaged[Cdecl]<char*, int>)glfwGetProcAddress);
+                /*int status = _glad.LoadGLLoader((delegate* unmanaged[Cdecl]<char*, int>)glfwGetProcAddress);
                 if (status != 1)
                 {
                     Console.Error.WriteLine("Could not initialise glad!");
                     return;
-                }
+                }*/
 
                 m_GladInit = true;
             }

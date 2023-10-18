@@ -18,7 +18,11 @@ MV_EXPORT const char* OpenFileDialog(const char* filter, void* owner)
 
 MV_EXPORT const char* SaveFileDialog(const char* filter, void* owner)
 {
-
+#ifdef MV_WINDOWS
+	return OpenFileDialogNativeWindows(filter, owner);
+#elif defined MV_MACOSX
+	return OpenFileDialogNativeMacOS(filter);
+#endif
 }
 
 #define MAX(x, y) (x >= y ? x : y)

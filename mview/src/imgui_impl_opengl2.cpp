@@ -38,11 +38,27 @@
 //  2016-09-10: OpenGL: Uploading font texture as RGBA32 to increase compatibility with users shaders (not ideal).
 //  2016-09-05: OpenGL: Fixed save and restore of current scissor rectangle.
 
-#include "imgui.h"
+#include "cimgui.h"
 #ifndef IMGUI_DISABLE
 #include "imgui_impl_opengl2.h"
 #include "GLFW/glfw3.h"
 #include <stdint.h>     // intptr_t
+#include <cstring>
+
+#ifndef IM_ASSERT
+#include <assert.h>
+#define IM_ASSERT(_EXPR)            assert(_EXPR)
+#endif
+
+#define IM_OFFSETOF(_TYPE,_MEMBER)  offsetof(_TYPE, _MEMBER)   
+
+#undef IM_NEW
+struct ImNewWrapper {};
+inline void* operator new(size_t, ImNewWrapper, void* ptr) { return ptr; }
+inline void  operator delete(void*, ImNewWrapper, void*) {} // This is only required so we can use the symmetrical new()
+#define IM_NEW(_TYPE)                       new(ImNewWrapper(), igMemAlloc(sizeof(_TYPE))) _TYPE
+
+template<typename T> void IM_DELETE(T* p) { if (p) { p->~T(); igMemFree(p); } }
 
 // Clang/GCC warnings with -Weverything
 #if defined(__clang__)
@@ -110,7 +126,7 @@ struct ImGui_ImplOpenGL2_Data
 // It is STRONGLY preferred that you use docking branch with multi-viewports (== single Dear ImGui context + multiple windows) instead of multiple Dear ImGui contexts.
 static ImGui_ImplOpenGL2_Data* ImGui_ImplOpenGL2_GetBackendData()
 {
-    return igGetCurrentContext() ? (ImGui_ImplOpenGL2_Data*)igGetIO().BackendRendererUserData : nullptr;
+    return igGetCurrentContext() ? (ImGui_ImplOpenGL2_Data*)igGetIO()->BackendRendererUserData : nullptr;
 }
 
 // Forward Declarations
@@ -120,8 +136,8 @@ static void ImGui_ImplOpenGL2_ShutdownPlatformInterface();
 // Functions
 bool    ImGui_ImplOpenGL2_Init()
 {
-    ImGuiIO& io = igGetIO();
-    IM_ASSERT(io.BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
+    ImGuiIO* io = igGetIO();
+    IM_ASSERT(io->BackendRendererUserData == nullptr && "Already initialized a renderer backend!");
 
     IMPORT_GL_FUNC(glEnable, GLenum);
     IMPORT_GL_FUNC(glBlendFunc, GLenum, GLenum);
@@ -157,11 +173,11 @@ bool    ImGui_ImplOpenGL2_Init()
 
     // Setup backend capabilities flags
     ImGui_ImplOpenGL2_Data* bd = IM_NEW(ImGui_ImplOpenGL2_Data)();
-    io.BackendRendererUserData = (void*)bd;
-    io.BackendRendererName = "imgui_impl_opengl2";
-    io.BackendFlags |= ImGuiBackendFlags_RendererHasViewports;    // We can create multi-viewports on the Renderer side (optional)
+    io->BackendRendererUserData = (void*)bd;
+    io->BackendRendererName = "imgui_impl_opengl2";
+    io->BackendFlags |= ImGuiBackendFlags_RendererHasViewports;    // We can create multi-viewports on the Renderer side (optional)
 
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+    if (io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         ImGui_ImplOpenGL2_InitPlatformInterface();
 
     return true;
@@ -171,13 +187,13 @@ void    ImGui_ImplOpenGL2_Shutdown()
 {
     ImGui_ImplOpenGL2_Data* bd = ImGui_ImplOpenGL2_GetBackendData();
     IM_ASSERT(bd != nullptr && "No renderer backend to shutdown, or already shutdown?");
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
 
     ImGui_ImplOpenGL2_ShutdownPlatformInterface();
     ImGui_ImplOpenGL2_DestroyDeviceObjects();
-    io.BackendRendererName = nullptr;
-    io.BackendRendererUserData = nullptr;
-    io.BackendFlags &= ~ImGuiBackendFlags_RendererHasViewports;
+    io->BackendRendererName = nullptr;
+    io->BackendRendererUserData = nullptr;
+    io->BackendFlags &= ~ImGuiBackendFlags_RendererHasViewports;
     IM_DELETE(bd);
 }
 
@@ -264,7 +280,7 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
     // Render command lists
     for (int n = 0; n < draw_data->CmdListsCount; n++)
     {
-        const ImDrawList* cmd_list = draw_data->CmdLists[n];
+        const ImDrawList* cmd_list = draw_data->CmdLists.Data[n];
         const ImDrawVert* vtx_buffer = cmd_list->VtxBuffer.Data;
         const ImDrawIdx* idx_buffer = cmd_list->IdxBuffer.Data;
         import_glVertexPointer(2, GL_FLOAT, sizeof(ImDrawVert), (const GLvoid*)((const char*)vtx_buffer + IM_OFFSETOF(ImDrawVert, pos)));
@@ -273,12 +289,12 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
 
         for (int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
-            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer[cmd_i];
+            const ImDrawCmd* pcmd = &cmd_list->CmdBuffer.Data[cmd_i];
             if (pcmd->UserCallback)
             {
                 // User callback, registered via ImDrawList::AddCallback()
                 // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
-                if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+                if (pcmd->UserCallback == (ImDrawCallback)-1)
                     ImGui_ImplOpenGL2_SetupRenderState(draw_data, fb_width, fb_height);
                 else
                     pcmd->UserCallback(cmd_list, pcmd);
@@ -286,8 +302,12 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
             else
             {
                 // Project scissor/clipping rectangles into framebuffer space
-                ImVec2 clip_min((pcmd->ClipRect.x - clip_off.x) * clip_scale.x, (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
-                ImVec2 clip_max((pcmd->ClipRect.z - clip_off.x) * clip_scale.x, (pcmd->ClipRect.w - clip_off.y) * clip_scale.y);
+                ImVec2 clip_min;
+                clip_min.x = (pcmd->ClipRect.x - clip_off.x) * clip_scale.x;
+                clip_min.y = (pcmd->ClipRect.y - clip_off.y) * clip_scale.y;
+                ImVec2 clip_max;
+                clip_max.x = (pcmd->ClipRect.z - clip_off.x) * clip_scale.x;
+                clip_max.y = (pcmd->ClipRect.w - clip_off.y) * clip_scale.y;
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
@@ -295,7 +315,7 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
                 import_glScissor((int)clip_min.x, (int)((float)fb_height - clip_max.y), (int)(clip_max.x - clip_min.x), (int)(clip_max.y - clip_min.y));
 
                 // Bind texture, Draw
-                import_glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)pcmd->GetTexID());
+                import_glBindTexture(GL_TEXTURE_2D, (GLuint)(intptr_t)ImDrawCmd_GetTexID((ImDrawCmd*)pcmd));
                 import_glDrawElements(GL_TRIANGLES, (GLsizei)pcmd->ElemCount, sizeof(ImDrawIdx) == 2 ? GL_UNSIGNED_SHORT : GL_UNSIGNED_INT, idx_buffer + pcmd->IdxOffset);
             }
         }
@@ -320,11 +340,11 @@ void ImGui_ImplOpenGL2_RenderDrawData(ImDrawData* draw_data)
 bool ImGui_ImplOpenGL2_CreateFontsTexture()
 {
     // Build texture atlas
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     ImGui_ImplOpenGL2_Data* bd = ImGui_ImplOpenGL2_GetBackendData();
     unsigned char* pixels;
     int width, height;
-    ImFontAtlas_GetTexDataAsRGBA32(io.Fonts, &pixels, &width, &height, nullptr); // Load as RGBA 32-bit (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
+    ImFontAtlas_GetTexDataAsRGBA32(io->Fonts, &pixels, &width, &height, nullptr); // Load as RGBA 32-bit (75% of the memory is wasted, but default font is so small) because it is more likely to be compatible with user's existing shaders. If your ImTextureId represent a higher-level concept than just a GL texture id, consider calling GetTexDataAsAlpha8() instead to save on GPU memory.
 
     // Upload texture to graphics system
     // (Bilinear sampling is required by default. Set 'io.Fonts->Flags |= ImFontAtlasFlags_NoBakedLines' or 'style.AntiAliasedLinesUseTex = false' to allow point/nearest sampling)
@@ -338,7 +358,7 @@ bool ImGui_ImplOpenGL2_CreateFontsTexture()
     import_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     // Store our identifier
-    io.Fonts->SetTexID((ImTextureID)(intptr_t)bd->FontTexture);
+    ImFontAtlas_SetTexID(io->Fonts, (ImTextureID)(intptr_t)bd->FontTexture);
 
     // Restore state
     import_glBindTexture(GL_TEXTURE_2D, last_texture);
@@ -348,12 +368,12 @@ bool ImGui_ImplOpenGL2_CreateFontsTexture()
 
 void ImGui_ImplOpenGL2_DestroyFontsTexture()
 {
-    ImGuiIO& io = igGetIO();
+    ImGuiIO* io = igGetIO();
     ImGui_ImplOpenGL2_Data* bd = ImGui_ImplOpenGL2_GetBackendData();
     if (bd->FontTexture)
     {
         import_glDeleteTextures(1, &bd->FontTexture);
-        ImFontAtlas_SetTexID(io.Fonts, 0);
+        ImFontAtlas_SetTexID(io->Fonts, 0);
         bd->FontTexture = 0;
     }
 }
@@ -379,7 +399,7 @@ static void ImGui_ImplOpenGL2_RenderWindow(ImGuiViewport* viewport, void*)
 {
     if (!(viewport->Flags & ImGuiViewportFlags_NoRendererClear))
     {
-        ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 1.0f);
+        ImVec4 clear_color = { 0.0f, 0.0f, 0.0f, 1.0f };
         import_glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         import_glClear(GL_COLOR_BUFFER_BIT);
     }
@@ -388,8 +408,8 @@ static void ImGui_ImplOpenGL2_RenderWindow(ImGuiViewport* viewport, void*)
 
 static void ImGui_ImplOpenGL2_InitPlatformInterface()
 {
-    ImGuiPlatformIO& platform_io = igGetPlatformIO();
-    platform_io.Renderer_RenderWindow = ImGui_ImplOpenGL2_RenderWindow;
+    ImGuiPlatformIO* platform_io = igGetPlatformIO();
+    platform_io->Renderer_RenderWindow = ImGui_ImplOpenGL2_RenderWindow;
 }
 
 static void ImGui_ImplOpenGL2_ShutdownPlatformInterface()

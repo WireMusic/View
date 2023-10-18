@@ -20,13 +20,13 @@ spec.DefaultFontSizes = new[] {
 
 spec.BoldFontSizes = new[] {
     22.0f,
+    33.0f,
     45.0f
 };
 
 spec.LoadFontOnNewSize = false;
 
 spec.GLFW = Resources.glfw3;
-spec.Glad = Resources.glad;
 spec.cimgui = Resources.cimgui;
 spec.OtherImplementations = Resources.mview;
 spec.OtherImplementationsName = "mview";

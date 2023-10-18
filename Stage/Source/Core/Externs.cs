@@ -2,6 +2,8 @@ using System.Runtime.InteropServices;
 
 using Stage.UIModule;
 
+using unsafe GLFWerrorfun = delegate* unmanaged[Cdecl]<int, byte*, void>;
+
 namespace Stage.Core
 {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -20,7 +22,6 @@ namespace Stage.Core
         public delegate* unmanaged[Cdecl]<int, void> SwapInterval;
         public delegate* unmanaged[Cdecl]<nint, string, void> SetClipboardString;
         public delegate* unmanaged[Cdecl]<nint, string> GetClipboardString;
-        public delegate* unmanaged[Cdecl]<delegate* unmanaged[Cdecl]<int, string, void>, delegate* unmanaged[Cdecl]<int, string, void>> SetErrorCallback;
         public delegate* unmanaged[Cdecl]<int, nint> CreateStandardCursor;
         public delegate* unmanaged[Cdecl]<nint, int> GetError;
         public delegate* unmanaged[Cdecl]<nint, nint, nint> SetWindowFocusCallback;
@@ -38,17 +39,9 @@ namespace Stage.Core
 		public delegate* unmanaged[Cdecl]<int, int, void> WindowHint;
         public delegate* unmanaged[Cdecl]<nint, int, int, void> SetWindowPos;
         public delegate* unmanaged[Cdecl]<nint, out int, out int, void> GetWindowSize;
+        public delegate* unmanaged[Cdecl]<GLFWerrorfun, GLFWerrorfun> SetErrorCallback;
 
         // glfw end (code gen)
-    }
-
-    unsafe struct Glad
-    {
-        public Library Lib;
-
-        public delegate* unmanaged[Cdecl]<delegate* unmanaged[Cdecl]<char*, int>, int> LoadGLLoader;
-
-        // glad end (code gen)
     }
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
@@ -58,28 +51,31 @@ namespace Stage.Core
 
 		public delegate* unmanaged[Cdecl]<string, bool*, int, bool> Begin;
 		public delegate* unmanaged[Cdecl]<void> End;
-		public delegate* unmanaged[Cdecl]<string, nint, Vector2, Vector2, Vector2, Vector4, Vector4, bool> ImageButton;
+		public delegate* unmanaged[Cdecl]<string, nint, Vector2*, Vector2*, Vector2*, Vector4*, Vector4*, bool> ImageButton;
 		public delegate* unmanaged[Cdecl]<string, void> Text;
 		public delegate* unmanaged[Cdecl]<int, float, void> PushStyleVar_Float;
-		public delegate* unmanaged[Cdecl]<int, Vector2, void> PushStyleVar_Vec2;
+		public delegate* unmanaged[Cdecl]<int, Vector2*, void> PushStyleVar_Vec2;
 		public delegate* unmanaged[Cdecl]<int, void> PopStyleVar;
 		public delegate* unmanaged[Cdecl]<nint> GetMainViewport;
-        public delegate* unmanaged[Cdecl]<Vector2, int, Vector2, void> SetNextWindowPos;
-        public delegate* unmanaged[Cdecl]<Vector2, int, void> SetNextWindowSize;
+        public delegate* unmanaged[Cdecl]<Vector2*, int, Vector2*, void> SetNextWindowPos;
+        public delegate* unmanaged[Cdecl]<Vector2*, int, void> SetNextWindowSize;
         public delegate* unmanaged[Cdecl]<uint, void> SetNextWindowViewport;
 		public delegate* unmanaged[Cdecl]<string, uint> GetID;
-		public delegate* unmanaged[Cdecl]<uint, Vector2, int, nint, uint> DockSpace;
+		public delegate* unmanaged[Cdecl]<uint, Vector2*, int, nint, uint> DockSpace;
 		public delegate* unmanaged[Cdecl]<bool> BeginMenuBar;
 		public delegate* unmanaged[Cdecl]<void> EndMenuBar;
 		public delegate* unmanaged[Cdecl]<string, bool, bool> BeginMenu;
 		public delegate* unmanaged[Cdecl]<void> EndMenu;
 		public delegate* unmanaged[Cdecl]<string, string, bool, bool, bool> MenuItem_Bool;
 		public delegate* unmanaged[Cdecl]<float, float, void> SameLine;
-		public delegate* unmanaged[Cdecl]<string, Vector2, bool> Button;
-		public delegate* unmanaged[Cdecl]<string, Vector2, int, bool> ButtonEx;
+		public delegate* unmanaged[Cdecl]<string, Vector2*, bool> Button;
+		public delegate* unmanaged[Cdecl]<string, Vector2*, int, bool> ButtonEx;
+        public delegate* unmanaged[Cdecl]<string, Vector2*, int, bool> InvisibleButton;
+        public delegate* unmanaged[Cdecl]<int, bool> IsItemHovered;
+        public delegate* unmanaged[Cdecl]<bool> IsItemActive;
 		public delegate* unmanaged[Cdecl]<string, bool*, bool> Checkbox;
 		public delegate* unmanaged[Cdecl]<int, uint, void> PushStyleColor_U32;
-		public delegate* unmanaged[Cdecl]<int, Vector4, void> PushStyleColor_Vec4;
+		public delegate* unmanaged[Cdecl]<int, Vector4*, void> PushStyleColor_Vec4;
 		public delegate* unmanaged[Cdecl]<int, void> PopStyleColor;
 		public delegate* unmanaged[Cdecl]<string, int, int, Vector2*, float, bool> BeginTable;
 		public delegate* unmanaged[Cdecl]<out Vector2, string, nint, bool, float, void> CalcTextSize;
@@ -88,7 +84,7 @@ namespace Stage.Core
 		public delegate* unmanaged[Cdecl]<out Vector2, void> GetWindowSize;
 		public delegate* unmanaged[Cdecl]<int, float, void> TableNextRow;
 		public delegate* unmanaged[Cdecl]<int, uint, int, void> TableSetBgColor;
-		public delegate* unmanaged[Cdecl]<Vector4, uint> GetColorU32_Vec4;
+		public delegate* unmanaged[Cdecl]<Vector4*, uint> GetColorU32_Vec4;
 		public delegate* unmanaged[Cdecl]<int, bool> TableSetColumnIndex;
 		public delegate* unmanaged[Cdecl]<float> GetScrollY;
 		public delegate* unmanaged[Cdecl]<float> GetScrollMaxY;
@@ -104,11 +100,17 @@ namespace Stage.Core
 		public delegate* unmanaged[Cdecl]<int, string, bool, void> Columns;
 		public delegate* unmanaged[Cdecl]<int, float, void> SetColumnWidth;
 		public delegate* unmanaged[Cdecl]<void> NextColumn;
-		public delegate* unmanaged[Cdecl]<string, byte*, ulong, int, InputTextCallback, void*, bool> InputText;
+        public delegate* unmanaged[Cdecl]<int, bool, bool> IsMouseClicked;
+        public delegate* unmanaged[Cdecl]<int, bool> IsMouseDown;
+        public delegate* unmanaged[Cdecl]<int, float, bool> IsMouseDragging;
+        public delegate* unmanaged[Cdecl]<out Vector2, int, float, void> GetMouseDragDelta;
+        public delegate* unmanaged[Cdecl]<string, byte*, ulong, int, InputTextCallback, void*, bool> InputText;
 		public delegate* unmanaged[Cdecl]<float, void> PushItemWidth;
 		public delegate* unmanaged[Cdecl]<void> PopItemWidth;
 		public delegate* unmanaged[Cdecl]<bool*, void> ShowDemoWindow;
-		public delegate* unmanaged[Cdecl]<string, string, byte*, ulong, int, InputTextCallback, void*, bool> InputTextWithHint;
+        public delegate* unmanaged[Cdecl]<string, int, void> OpenPopupOnItemClick;
+        public delegate* unmanaged[Cdecl]<string, int, bool> BeginPopup;
+        public delegate* unmanaged[Cdecl]<string, string, byte*, ulong, int, InputTextCallback, void*, bool> InputTextWithHint;
 		public delegate* unmanaged[Cdecl]<void> PopFont;
 		public delegate* unmanaged[Cdecl]<string, float*, float, float, float, string, int, bool> DragFloat;
 		public delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, bool, void> ImDrawList_PushClipRect;
@@ -123,11 +125,33 @@ namespace Stage.Core
 		public delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, float, int, void> ImDrawList_AddRectFilled;
 		public delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, uint, uint, uint, uint, void> ImDrawList_AddRectFilledMultiColor;
 		public delegate* unmanaged[Cdecl]<nint, Vector2*, Vector2*, Vector2*, Vector2*, uint, void> ImDrawList_AddQuad;
-		public delegate* unmanaged[Cdecl]<nint> GetWindowDrawList;
+        public delegate* unmanaged[Cdecl]<nint, Vector2*, uint, string, void*, void> ImDrawList_AddText_Vec2;
+        public delegate* unmanaged[Cdecl]<nint, bool, float, byte*, int, Vector2*, uint, string, void*, float, Vector4*, void> ImDrawList_AddText_Font;
+        public delegate* unmanaged[Cdecl]<nint> GetWindowDrawList;
 		public delegate* unmanaged[Cdecl]<out Vector2, void> GetCursorScreenPos;
 		public delegate* unmanaged[Cdecl]<string, void> PushID_Str;
 		public delegate* unmanaged[Cdecl]<void> PopID;
         public delegate* unmanaged[Cdecl]<out Vector2, void> GetCursorPos;
+        public delegate* unmanaged[Cdecl]<nint, out Vector2, void> ImDrawVert_GetPos;
+        public delegate* unmanaged[Cdecl]<nint, ref Vector2, void> ImDrawVert_SetPos;
+        public delegate* unmanaged[Cdecl]<nint, out Vector2, void> ImDrawVert_GetUv;
+        public delegate* unmanaged[Cdecl]<nint, ref Vector2, void> ImDrawVert_SetUv;
+        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawVert_GetCol;
+        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawVert_SetCol;
+        public delegate* unmanaged[Cdecl]<nint, out Vector4, void> ImDrawCmd_GetClipRect;
+        public delegate* unmanaged[Cdecl]<nint, ref Vector4, void> ImDrawCmd_SetClipRect;
+        public delegate* unmanaged[Cdecl]<nint, out nint, void> ImDrawCmd_GetTextureID;
+        public delegate* unmanaged[Cdecl]<nint, nint, void> ImDrawCmd_SetTextureID;
+        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetVtxOffset;
+        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetVtxOffset;
+        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetIdxOffset;
+        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetIdxOffset;
+        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetElemCount;
+        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetElemCount;
+        public delegate* unmanaged[Cdecl]<nint, out delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void> ImDrawCmd_GetUserCallback;
+        public delegate* unmanaged[Cdecl]<nint, delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void> ImDrawCmd_SetUserCallback;
+        public delegate* unmanaged[Cdecl]<nint, void*> ImDrawCmd_GetUserCallbackData;
+        public delegate* unmanaged[Cdecl]<nint, void*, void> ImDrawCmd_SetUserCallbackData;
 
         // imgui end (code gen)
     }
@@ -188,55 +212,21 @@ namespace Stage.Core
         public delegate* unmanaged[Cdecl]<nint, void> ImGuiForceInstallCallbacks;
         public delegate* unmanaged[Cdecl]<nint, void> ImGuiRestoreCallbacks;
 
-        public delegate* unmanaged[Cdecl]<nint, out Vector2, void> ImDrawVert_GetPos;
-        public delegate* unmanaged[Cdecl]<nint, ref Vector2, void> ImDrawVert_SetPos;
-        public delegate* unmanaged[Cdecl]<nint, out Vector2, void> ImDrawVert_GetUv;
-        public delegate* unmanaged[Cdecl]<nint, ref Vector2, void> ImDrawVert_SetUv;
-        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawVert_GetCol;
-        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawVert_SetCol;
-
-        public delegate* unmanaged[Cdecl]<nint, out Vector4, void> ImDrawCmd_GetClipRect;
-        public delegate* unmanaged[Cdecl]<nint, ref Vector4, void> ImDrawCmd_SetClipRect;
-        public delegate* unmanaged[Cdecl]<nint, out nint, void> ImDrawCmd_GetTextureID;
-        public delegate* unmanaged[Cdecl]<nint, nint, void> ImDrawCmd_SetTextureID;
-        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetVtxOffset;
-        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetVtxOffset;
-        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetIdxOffset;
-        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetIdxOffset;
-        public delegate* unmanaged[Cdecl]<nint, out uint, void> ImDrawCmd_GetElemCount;
-        public delegate* unmanaged[Cdecl]<nint, uint, void> ImDrawCmd_SetElemCount;
-        public delegate* unmanaged[Cdecl]<nint, out delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void> ImDrawCmd_GetUserCallback;
-        public delegate* unmanaged[Cdecl]<nint, delegate* unmanaged[Cdecl]<DrawList*, DrawCommand*, void>, void> ImDrawCmd_SetUserCallback;
-        public delegate* unmanaged[Cdecl]<nint, void*> ImDrawCmd_GetUserCallbackData;
-        public delegate* unmanaged[Cdecl]<nint, void*, void> ImDrawCmd_SetUserCallbackData;
-
         public delegate* unmanaged[Cdecl]<nint, out int, void**> DrawList_GetCmdBuffer;
         public delegate* unmanaged[Cdecl]<nint, void**, int, void> DrawList_SetCmdBuffer;
+
+        // TODO: ImGuiIO
+        public delegate* unmanaged[Cdecl]<out Vector2, void> ImGuiIO_GetMousePos;
+        public delegate* unmanaged[Cdecl]<out Vector2, void> ImGuiIO_GetMouseDelta;
+        
+        public delegate* unmanaged[Cdecl]<float> ImGuiStyle_GetAlpha;
     }
 
     internal class Externs
     {
         internal static GLFW _glfw;
-        internal static Glad _glad;
         internal static GL _gl;
         internal static ImGui _imgui;
         internal static Helper _helper;
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

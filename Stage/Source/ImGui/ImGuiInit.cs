@@ -2,8 +2,8 @@
 using System.Runtime.InteropServices;
 
 using Stage.Core;
-using Stage.Renderer;
-using static Stage.Renderer.GLConstants;
+using Stage.Rendering;
+using static Stage.Rendering.GLConstants;
 
 namespace Stage.ImGui
 {

@@ -4,7 +4,7 @@ using Stage.Audio;
 using Stage.ImGui;
 using Stage.Utils;
 using Stage.UIModule;
-using Stage.Renderer;
+using Stage.Rendering;
 
 using System;
 using System.Collections.Generic;
@@ -34,7 +34,6 @@ namespace Stage.Core
         public bool LoadFontOnNewSize;
 
         public byte[] GLFW;
-        public byte[] Glad;
         public byte[] cimgui;
         public byte[] OtherImplementations;
         public string OtherImplementationsName;
@@ -83,7 +82,7 @@ namespace Stage.Core
                 specification.LoadFontOnNewSize
             );
 
-            Console.WriteLine(Unsafe.SizeOf<ImGui>() + Unsafe.SizeOf<GLFW>() + Unsafe.SizeOf<Glad>() + Unsafe.SizeOf<Helper>() + Unsafe.SizeOf<GL>());
+            Console.WriteLine(Unsafe.SizeOf<ImGui>() + Unsafe.SizeOf<GLFW>() + Unsafe.SizeOf<Helper>() + Unsafe.SizeOf<GL>());
         }
 
         bool open = true;
